@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<meta charset="UTF-8">
+<title>Ficha da Criança</title>
+<link rel="icon" href="/static/img/icone.png">
+<link rel="stylesheet" href="/static/css/dashboard.css">
+<link rel="stylesheet" href="/static/css/criancas.css">
+<link rel="stylesheet"
+href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+</head>
+
+<body>
+
+<div class="sidebar">
+
+<h2>Hotelzinho Kids</h2>
+
+<p onclick="window.location.href='/dashboard-page'">Dashboard</p>
+<p onclick="window.location.href='/cadastro-criancas'">Cadastro Crianças</p>
+<p onclick="window.location.href='/criancas-page'">Presença</p>
+<p onclick="window.location.href='/financeiro-page'">Financeiro</p>
+<p onclick="logout()">Sair</p>
+<div class="sidebar-config" onclick="window.location.href='/configuracoes-page'">
+<i class="fa-solid fa-gear"></i>
+<span>Configurações</span>
+</div>
+</div>
+
+</div>
+
+<div class="content">
+
+<h1>Ficha da Criança</h1>
+
+<div id="dados_crianca"></div>
+
+
+<h2>Histórico de Presença</h2>
+
+<table>
+
+<thead>
+<tr>
+<th>Checkin</th>
+<th>Checkout</th>
+<th>Tempo</th>
+
+</tr>
+</thead>
+
+<div id="modal-editar" class="modal">
+  <div class="modal-content">
+    <h3>Editar Presença</h3>
+
+    <input type="hidden" id="presenca_id">
+
+    <label>Check-in</label>
+    <input type="datetime-local" id="edit-checkin">
+
+    <label>Checkout</label>
+    <input type="datetime-local" id="edit-checkout">
+
+    <br><br>
+
+    <button onclick="salvarEdicao()">Salvar</button>
+    <button onclick="fecharModalEditar()">Cancelar</button>
+  </div>
+</div>
+
+<tbody id="historico_presenca"></tbody>
+
+</table>
+
+
+<h2>Financeiro</h2>
+
+<table>
+
+<thead>
+<tr>
+<th>Valor</th>
+<th>Status</th>
+</tr>
+</thead>
+
+<tbody id="historico_financeiro"></tbody>
+
+</table>
+
+</div>
+<div id="toast" class="toast"></div>
+<script src="/static/js/ficha_crianca.js"></script>
+
+</body>
+</html>

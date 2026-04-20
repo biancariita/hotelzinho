@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard</title>
+    <link rel="icon" href="/static/img/icone.png">
+   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+</head>
+<body>
+
+    
+<div class="sidebar">
+
+<h2>Hotelzinho Kids</h2>
+
+<p onclick="window.location.href='/dashboard-page'">Dashboard</p>
+<p onclick="window.location.href='/cadastro-criancas'">Cadastro Crianças</p>
+<p onclick="window.location.href='/criancas-page'">Presença</p>
+<p onclick="window.location.href='/financeiro-page'">Financeiro</p>
+<p onclick="logout()">Sair</p>
+<div class="sidebar-config" onclick="window.location.href='/configuracoes-page'">
+<i class="fa-solid fa-gear"></i>
+<span>Configurações</span>
+</div>
+</div>
+
+</div>
+
+<div class="content">
+
+<h1>Dashboard</h1>
+
+<div class="cards">
+
+<div class="card" onclick="mostrarLista('presentes')">
+  <h3>Presentes agora</h3>
+  <p id="presentesAgora">0</p>
+</div>
+
+<div class="card" onclick="mostrarLista('checkin')">
+  <h3>Check-in hoje</h3>
+  <p id="totalHoje">0</p>
+</div>
+
+<div class="card" onclick="mostrarLista('sairam')">
+  <h3>Já saíram</h3>
+  <p id="jaSairam">0</p>
+</div>
+
+<div class="card card-receita" onclick="abrirFinanceiroMes()">
+  <h3>Receita do mês</h3>
+</div>
+
+<!-- Modal -->
+<div id="modal" class="modal">
+  <div class="modal-content">
+    <span class="fechar" onclick="fecharModal()">X</span>
+    <h2 id="titulo-modal"></h2>
+    <ul id="lista-criancas"></ul>
+  </div>
+</div>
+
+<div class="chart-container">
+<canvas id="graficoFinanceiro"></canvas>
+</div>
+
+</div>
+
+
+<div id="toast" class="toast"></div>
+<script src="/static/js/dashboard.js" defer></script>
+
+</body>
+</html>

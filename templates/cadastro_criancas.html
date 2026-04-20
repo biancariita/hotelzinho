@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Cadastro de Crianças</title>
+
+<link rel="icon" href="/static/img/icone.png">
+<link rel="stylesheet" href="/static/css/dashboard.css">
+<link rel="stylesheet" href="/static/css/criancas.css">
+<link rel="stylesheet"
+href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+
+<body>
+
+<div class="sidebar">
+<h2>Hotelzinho Kids</h2>
+
+<p onclick="window.location.href='/dashboard-page'">Dashboard</p>
+<p onclick="window.location.href='/cadastro-criancas'">Cadastro Crianças</p>
+<p onclick="window.location.href='/criancas-page'">Presença</p>
+<p onclick="window.location.href='/financeiro-page'">Financeiro</p>
+<p onclick="logout()">Sair</p>
+
+<div class="sidebar-config" onclick="window.location.href='/configuracoes-page'">
+<i class="fa-solid fa-gear"></i>
+<span>Configurações</span>
+</div>
+</div>
+
+<div class="content">
+
+<h1>Cadastro de Crianças</h1>
+
+<div class="top-bar">
+
+<input
+type="text"
+id="pesquisaCrianca"
+placeholder="Pesquisar criança..."
+onkeyup="pesquisarCrianca()"
+/>
+
+<button onclick="abrirModal()">
+Nova criança
+</button>
+
+</div>
+
+<table id="tabelaCriancas">
+
+<thead>
+<tr>
+<th>Nome</th>
+<th>Idade</th>
+<th>Mãe</th>
+<th>Telefone</th>
+<th>Alergias</th>
+<th>Imagem</th>
+<th>Plano</th>
+<th>Ações</th>
+</tr>
+</thead>
+
+<tbody></tbody>
+
+</table>
+
+</div>
+
+<div id="modal" class="modal">
+<div class="modal-content">
+
+<h3 id="tituloModal">Nova Criança</h3>
+
+<input type="hidden" id="crianca_id">
+
+<div class="form-group">
+    <label>Nome</label>
+    <input id="nome">
+</div>
+
+<div class="form-group">
+    <label>Data de nascimento</label>
+    <input id="data_nascimento" type="date">
+</div>
+
+<div class="form-group">
+    <label>Alergias</label>
+    <input id="alergias">
+</div>
+
+<div class="form-group">
+    <label>Observações</label>
+    <input id="observacoes">
+</div>
+
+<div class="form-group">
+    <label>Plano da criança</label>
+    <select id="tipo_cobranca">
+    <option value="hora">Por Hora</option>
+    <option value="diaria">Diária</option>
+
+    <option value="mensal">Mensal Integral</option>
+    <option value="meio_periodo">Mensal Meio Período</option>
+
+    <option value="semanal">Semanal Integral</option>
+    <option value="semanal_meio">Semanal Meio Período</option>
+</select>
+</div>
+
+<div class="form-group">
+    <label>Dia de vencimento</label>
+    <input type="number" id="dia_vencimento" min="1" max="31" placeholder="Ex: 10">
+</div>
+
+<div class="form-group">
+    <label>Autorização de imagem</label>
+
+    <div class="radio-group">
+        <label>
+            <input type="radio" name="autorizacao_imagem" value="true"> Sim
+        </label>
+
+        <label>
+            <input type="radio" name="autorizacao_imagem" value="false"> Não
+        </label>
+    </div>
+</div>
+
+<hr>
+
+<!-- 🔥 RESPONSÁVEIS -->
+<div id="responsaveis-container"></div>
+
+<button onclick="adicionarResponsavel()">Adicionar responsável</button>
+
+<br><br>
+
+<button onclick="salvarCrianca()">Salvar</button>
+<button onclick="fecharModal()">Cancelar</button>
+
+</div>
+</div>
+
+<script src="/static/js/cadastro_criancas.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Receita do Mês</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="icon" href="/static/img/icone.png">
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/financeiro.css">
+
+    
+</head>
+
+<body>
+
+<div class="sidebar">
+<h2>Hotelzinho Kids</h2>
+
+<p onclick="window.location.href='/dashboard-page'">Dashboard</p>
+<p onclick="window.location.href='/cadastro-criancas'">Cadastro Crianças</p>
+<p onclick="window.location.href='/criancas-page'">Presença</p>
+<p onclick="window.location.href='/financeiro-page'">Financeiro</p>
+<p onclick="logout()">Sair</p>
+</div>
+
+<div class="content">
+
+<h1>Receita do Mês</h1>
+
+<div class="resumo-mes">
+
+    <div class="card-financeiro">
+        <span>Faturamento</span>
+        <h2 id="faturamento">R$ 0</h2>
+    </div>
+
+    <div class="card-financeiro gasto" onclick="toggleGastos()">
+        <span>Gastos</span>
+        <h2 id="gastos">R$ 0</h2>
+    </div>
+
+    <div class="card-financeiro lucro">
+        <span>Lucro</span>
+        <h2 id="lucro">R$ 0</h2>
+    </div>
+
+</div>
+
+<button onclick="abrirModalGasto()" class="btn-add">
+➕ Adicionar Gasto
+</button>
+
+
+<div id="listaGastos" style="display:none;"></div>
+
+</div>
+
+<!-- MODAL -->
+<div id="modalGasto" class="modal">
+  <div class="modal-content">
+    <h3>Novo Gasto</h3>
+
+    <input id="descricaoGasto" placeholder="Descrição">
+    <input id="valorGasto" type="number" placeholder="Valor">
+
+    <button onclick="salvarGasto()">Salvar</button>
+    <button onclick="fecharModalGasto()">Cancelar</button>
+  </div>
+</div>
+
+<script src="/static/js/receita_mes.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<meta charset="UTF-8">
+<title>Configurações</title>
+
+<link rel="icon" href="/static/img/icone.png">
+<link rel="stylesheet" href="/static/css/configuracoes.css">
+
+</head>
+
+<body>
+
+<div class="top-bar">
+    <img src="/static/img/imagem.png" class="logo-img">
+    <span class="logo-text">Hotelzinho Kids</span>
+</div>
+
+<div class="config-box">
+
+<h2>Configurações</h2>
+
+<h3>Perfil da empresa</h3>
+
+<input id="nome_empresa" placeholder="Nome da empresa">
+<input id="responsavel" placeholder="Responsável">
+<input id="cnpj" placeholder="CNPJ">
+<input id="telefone" placeholder="Telefone">
+<input id="email_empresa" placeholder="Email">
+<input id="endereco" placeholder="Endereço">
+
+<br><br>
+
+<button onclick="salvar()">Salvar perfil</button>
+
+<hr>
+
+<div class="config-item" onclick="abrirSeguranca()">
+🔒 Segurança da conta
+</div>
+
+<div class="config-item" onclick="abrirFinanceiro()">
+💰 Configuração financeira
+</div>
+
+</div>
+
+<script>
+
+function abrirSeguranca(){
+window.location.href="/configuracoes-seguranca"
+}
+
+function abrirFinanceiro(){
+window.location.href="/configuracoes-financeiro"
+}
+
+function abrirConfiguracoes(){
+    window.location.href = "/configuracoes-page"
+}
+
+</script>
+
+<script src="/static/js/configuracoes.js"></script>
+
+</body>
+</html>

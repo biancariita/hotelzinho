@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuração Segurança</title>
+
+    <link rel="icon" href="/static/img/icone.png">
+    <link rel="stylesheet" href="/static/css/configuracoes.css">
+
+</head>
+
+<body>   
+
+<div class="top-bar">
+    <img src="/static/img/imagem.png" class="logo-img">
+    <span class="logo-text">Hotelzinho Kids</span>
+</div>
+
+<div class="config-box">
+<h2>Segurança da conta</h2>
+
+<button onclick="voltar()">⬅ Voltar</button>
+
+<h3>Alterar email</h3>
+
+<input id="novo_email" placeholder="Novo email">
+
+<button onclick="alterarEmail()">
+Alterar email
+</button>
+
+<hr>
+
+<h3>Alterar senha</h3>
+
+<input type="password" id="senha_atual" placeholder="Senha atual">
+
+<input type="password" id="nova_senha" placeholder="Nova senha">
+
+<button onclick="alterarSenha()">
+Alterar senha
+</button>
+
+</div>
+
+
+<script>
+
+function voltar(){
+window.history.back()
+}
+
+</script>
+
+<script src="/static/js/configuracoes.js"></script>
+
+</body>
+</html>

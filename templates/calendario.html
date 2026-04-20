@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Calendário</title>
+    <link rel="stylesheet" href="/static/calendario.css">
+</head>
+<body>
+
+<h2>📅 Controle de Presença</h2>
+
+<div class="topo">
+    <button onclick="mesAnterior()">⬅</button>
+    <h3 id="mesAtual"></h3>
+    <button onclick="proximoMes()">➡</button>
+</div>
+
+<div id="calendario"></div>
+
+<!-- MODAL -->
+<div id="modalDia" class="modal">
+    <div class="modal-content">
+        <h3 id="dataSelecionada"></h3>
+
+        <select id="criancaSelect"></select>
+
+        <input type="datetime-local" id="checkin">
+        <input type="datetime-local" id="checkout">
+
+        <button onclick="salvarPresenca()">Salvar</button>
+        <button onclick="fecharModal()">Fechar</button>
+    </div>
+</div>
+
+<script src="/static/calendario.js"></script>
+
+</body>
+</html>

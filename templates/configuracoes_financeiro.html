@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Configuração Financeiro</title>
+
+<link rel="icon" href="/static/img/icone.png">
+<link rel="stylesheet" href="/static/css/configuracoes.css">
+
+
+</head>
+
+<body>
+    
+<div class="top-bar">
+    <img src="/static/img/imagem.png" class="logo-img">
+    <span class="logo-text">Hotelzinho Kids</span>
+</div>
+
+<div class="config-box">
+
+<h2>Configuração financeira</h2>
+
+<button onclick="voltar()">⬅ Voltar</button>
+
+
+<h3>Valores</h3>
+
+<label>Valor Hora:</label>
+<input type="number" id="valor_hora">
+
+<label>Valor Diária:</label>
+<input type="number" id="valor_diaria">
+
+<label>Semanal Integral:</label>
+<input type="number" id="valor_semanal_integral">
+
+<label>Semanal Meio Período:</label>
+<input type="number" id="valor_semanal_meio">
+
+<label>Mensal Integral:</label>
+<input type="number" id="valor_mensal_integral">
+
+<label>Mensal Meio Período:</label>
+<input type="number" id="valor_mensal_meio">
+
+<label>Valor Sábado:</label>
+<input type="number" id="valor_sabado">
+
+<hr>
+
+<h3>Dados bancários</h3>
+
+<input id="pix_chave" placeholder="Chave PIX">
+
+<input id="banco_nome" placeholder="Banco">
+
+<input id="banco_agencia" placeholder="Agência">
+
+<input id="banco_conta" placeholder="Conta">
+
+<button onclick="salvarFinanceiro()">
+Salvar
+</button>
+
+</div>
+<script>
+
+function voltar(){
+window.history.back()
+}
+
+</script>
+
+<script src="/static/js/financeiro.js"></script>
+
+</body>
+</html>
