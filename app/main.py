@@ -4,6 +4,7 @@ from fastapi import FastAPI, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.database import engine, SessionLocal
+from app.database import get_db
 from app import models, schemas, crud
 from app.security import criar_token, gerar_hash_senha, verificar_senha
 from fastapi import HTTPException
