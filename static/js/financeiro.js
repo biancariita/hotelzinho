@@ -701,3 +701,4 @@ ${pix}`
 
     window.open(`https://wa.me/55${tel}?text=${encodeURIComponent(msg)}`)
 }
+

@@ -36,6 +36,9 @@ import crcmod
 from datetime import datetime
 from datetime import date
 import calendar
+from app.database import SessionLocal
+from app.models import Usuario
+from fastapi import Body
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -43,15 +46,6 @@ app = FastAPI()
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
-
-# Dependência de banco
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
 
 @app.post("/criancas", response_model=schemas.CriancaResponse)
 def criar(
@@ -173,69 +167,33 @@ def login(
         "token_type": "bearer"
     }
 
-@app.get("/recuperar-senha")
-def recuperar_senha_page(request: Request):
-
-    return templates.TemplateResponse(
-        "recuperar_senha.html",
-        {"request": request}
-    )
-
-@app.post("/recuperar-senha")
-def recuperar_senha(
-    dados: schemas.RecuperarSenha,
-    db: Session = Depends(get_db)
-):
-
-    usuario = None
-
-    if dados.email:
-        usuario = db.query(models.Usuario)\
-            .filter(models.Usuario.email == dados.email)\
-            .first()
-
-    if dados.telefone:
-        usuario = db.query(models.Usuario)\
-            .filter(models.Usuario.telefone == dados.telefone)\
-            .first()
-
-    if not usuario:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
-
-    codigo = str(random.randint(100000,999999))
-
-    usuario.codigo_recuperacao = codigo
-    usuario.codigo_expira = datetime.utcnow() + timedelta(minutes=10)
-
-    db.commit()
-
-    print("Código recuperação:", codigo)
-
-    return {"msg":"Código enviado"}
-
 @app.post("/nova-senha")
-def nova_senha(
-    dados: schemas.NovaSenha,
-    db: Session = Depends(get_db)
-):
+def nova_senha(data: dict = Body(...), db: Session = Depends(get_db)):
+    email = data.get("email")
+    codigo = data.get("codigo")
+    nova_senha = data.get("nova_senha")
+
+    if not email or not codigo or not nova_senha:
+        raise HTTPException(status_code=400, detail="Preencha todos os campos")
 
     usuario = db.query(models.Usuario)\
-        .filter(models.Usuario.codigo_recuperacao == dados.codigo)\
+        .filter(
+            models.Usuario.email == email,
+            models.Usuario.codigo_recuperacao == codigo
+        )\
         .first()
 
     if not usuario:
         raise HTTPException(status_code=400, detail="Código inválido")
 
-    if datetime.utcnow() > usuario.codigo_expira:
-        raise HTTPException(status_code=400, detail="Código expirado")
+    from app.security import gerar_hash_senha
 
-    usuario.senha_hash = gerar_hash_senha(dados.nova_senha)
-
+    usuario.senha_hash = gerar_hash_senha(nova_senha)
     usuario.codigo_recuperacao = None
 
     db.commit()
 
-    return {"msg":"Senha alterada"}
+    return {"msg": "Senha alterada com sucesso"}
 
 @app.post("/checkin/{crianca_id}")
 def checkin(
@@ -1692,3 +1650,88 @@ def calendario_page(request: Request):
         {"request": request}
     )
 
+@app.get("/cadastro-page", response_class=HTMLResponse)
+def cadastro_page(request: Request):
+    return templates.TemplateResponse("cadastro.html", {"request": request})
+
+
+@app.post("/cadastro")
+def cadastrar_usuario_simples(dados: dict):
+    db = SessionLocal()
+
+    nome = dados.get("nome")
+    email = dados.get("email")
+    senha = dados.get("senha")
+
+    if not nome or not email or not senha:
+        return {"msg": "Dados incompletos"}
+
+    existe = db.query(Usuario).filter(Usuario.email == email).first()
+
+    if existe:
+        return {"msg": "Usuário já existe"}
+
+    novo = Usuario(
+        nome=nome,
+        email=email,
+        senha_hash=gerar_hash_senha(senha)
+    )
+
+    db.add(novo)
+    db.commit()
+    db.close()
+
+    return {"msg": "Usuário criado com sucesso"}
+
+@app.post("/recuperar-senha")
+def recuperar_senha(data: dict = Body(...), db: Session = Depends(get_db)):
+    email = data.get("email")
+
+    if not email:
+        raise HTTPException(status_code=400, detail="Informe o email")
+
+    usuario = db.query(models.Usuario)\
+        .filter(models.Usuario.email == email)\
+        .first()
+
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+    import random
+    codigo = str(random.randint(100000, 999999))
+
+    usuario.codigo_recuperacao = codigo
+    db.commit()
+
+    print("CÓDIGO:", codigo)
+
+    return {"msg": f"Código enviado: {codigo}"}
+
+@app.get("/recuperar-senha", response_class=HTMLResponse)
+def pagina_recuperar_senha(request: Request):
+    return templates.TemplateResponse("recuperar_senha.html", {"request": request})
+
+@app.get("/aniversarios-proximos")
+def aniversarios_proximos(db: Session = Depends(get_db)):
+    hoje = date.today()
+    limite = hoje + timedelta(days=3)
+
+    criancas = db.query(models.Crianca).all()
+
+    resultado = []
+
+    for c in criancas:
+        if not c.data_nascimento:
+            continue
+
+        aniversario_este_ano = c.data_nascimento.replace(year=hoje.year)
+
+        if hoje <= aniversario_este_ano <= limite:
+            dias_faltando = (aniversario_este_ano - hoje).days
+
+            resultado.append({
+                "nome": c.nome,
+                "dias": dias_faltando
+            })
+
+    return resultado

@@ -166,3 +166,49 @@ async function atualizarDashboard() {
     document.getElementById("jaSairam").innerText = dados.ja_sairam;
 }
 
+async function verificarAniversarios() {
+    const res = await fetch("/aniversarios-proximos");
+    const data = await res.json();
+
+    data.forEach(c => {
+        if (c.dias === 0) {
+            mostrarNotificacao(
+                "🎂 Hoje é aniversário",
+                `${c.nome} está fazendo aniversário hoje!`,
+                "🎂"
+            );
+        } else {
+            mostrarNotificacao(
+                " Aniversário chegando",
+                `${c.nome} faz aniversário em ${c.dias} dia(s)`,
+                "🎉"
+            );
+        }
+    });
+}
+
+window.onload = function () {
+    verificarAniversarios();
+};
+
+function mostrarNotificacao(titulo, mensagem, icone = "🎉") {
+    const container = document.getElementById("notificacao-container");
+
+    const div = document.createElement("div");
+    div.classList.add("notificacao");
+
+    div.innerHTML = `
+        <div class="notificacao-icon">${icone}</div>
+        <div class="notificacao-content">
+            <div class="notificacao-title">${titulo}</div>
+            <div class="notificacao-msg">${mensagem}</div>
+        </div>
+        <div class="fechar-btn" onclick="this.parentElement.remove()">×</div>
+    `;
+
+    container.appendChild(div);
+
+    setTimeout(() => {
+        div.remove();
+    }, 9000);
+}

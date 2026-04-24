@@ -1,32 +1,26 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-br">
 
 <head>
-<title>Recuperar senha</title>
+    <meta charset="UTF-8">
+    <title>Recuperar senha</title>
 </head>
 
 <body>
 
 <h2>Recuperar senha</h2>
 
-<input id="email" placeholder="Digite seu email">
-
-<button onclick="enviarCodigo()">
-Enviar código
-</button>
-
-<hr>
-
-<input id="codigo" placeholder="Código recebido">
-
+<!-- ENVIAR CÓDIGO -->
+<input type="text" id="email" placeholder="Usuário">
+<input type="text" id="codigo" placeholder="Código recebido">
 <input type="password" id="nova_senha" placeholder="Nova senha">
 
-<button onclick="alterarSenha()">
-Alterar senha
-</button>
+<button onclick="enviarCodigo()">Enviar código</button>
+<button onclick="alterarSenha()">Alterar senha</button>
+
+<p id="msg"></p>
 
 <script src="/static/js/recuperar_senha.js"></script>
 
 </body>
-
 </html>

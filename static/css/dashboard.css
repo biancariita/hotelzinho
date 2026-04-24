@@ -576,3 +576,66 @@ white-space:nowrap;
     padding: 10px;
     border-bottom: 1px solid #eee;
 }
+
+#notificacao-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+}
+
+.notificacao {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: #ffffff;
+    color: #333;
+    padding: 16px;
+    margin-bottom: 12px;
+    border-radius: 14px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    width: 320px;
+    animation: fadeSlide 0.4s ease;
+    border-left: 6px solid #6a5acd;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.notificacao-icon {
+    font-size: 24px;
+}
+
+.notificacao-content {
+    flex: 1;
+}
+
+.notificacao-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+    font-size: 15px;
+}
+
+.notificacao-msg {
+    font-size: 14px;
+    color: #555;
+}
+
+.fechar-btn {
+    cursor: pointer;
+    font-weight: bold;
+    color: #999;
+}
+
+.fechar-btn:hover {
+    color: #333;
+}
+
+@keyframes fadeSlide {
+    from {
+        opacity: 0;
+        transform: translateX(50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
