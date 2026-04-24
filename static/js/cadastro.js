@@ -2,6 +2,7 @@ async function cadastrar() {
     const nome = document.getElementById("nome").value;
     const email = document.getElementById("email").value;
     const senha = document.getElementById("senha").value;
+    const empresa = document.getElementById("empresa").value;
 
     const res = await fetch("/cadastro", {
         method: "POST",
@@ -12,14 +13,15 @@ async function cadastrar() {
             nome,
             email,
             senha,
-            empresa_id: 1
+            nome_empresa: empresa
         })
     });
 
     const data = await res.json();
 
     if (!res.ok) {
-        document.getElementById("msg").innerText = data.detail || "Erro ao cadastrar";
+        document.getElementById("msg").innerText =
+            data.detail?.[0]?.msg || data.detail || "Erro ao cadastrar";
         return;
     }
 

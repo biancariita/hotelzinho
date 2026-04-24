@@ -33,12 +33,12 @@ from fastapi.responses import RedirectResponse
 import random
 from datetime import datetime, timedelta
 import crcmod
-from datetime import datetime
-from datetime import date
 import calendar
 from app.database import SessionLocal
 from app.models import Usuario
 from fastapi import Body
+from app.models import Usuario, Empresa
+from app.security import gerar_hash_senha
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -1656,28 +1656,41 @@ def cadastro_page(request: Request):
 
 
 @app.post("/cadastro")
-def cadastrar_usuario_simples(dados: UsuarioCreate, db: Session = Depends(get_db)):
+def cadastrar_usuario(dados: schemas.UsuarioCreate, db: Session = Depends(get_db)):
     try:
+        # 🔍 verifica se já existe usuário
         existe = db.query(Usuario).filter(Usuario.email == dados.email).first()
-
         if existe:
             raise HTTPException(status_code=400, detail="Email já cadastrado")
 
-        novo = Usuario(
+        # 🔥 cria empresa
+        nova_empresa = Empresa(
+            nome=dados.nome_empresa,
+            email=dados.email
+        )
+
+        db.add(nova_empresa)
+        db.commit()
+        db.refresh(nova_empresa)
+
+        # 🔥 cria usuário vinculado à empresa
+        novo_usuario = Usuario(
             nome=dados.nome,
             email=dados.email,
             senha_hash=gerar_hash_senha(dados.senha),
-            empresa_id=dados.empresa_id
+            empresa_id=nova_empresa.id,
+            role="admin"
         )
 
-        db.add(novo)
+        db.add(novo_usuario)
         db.commit()
 
-        return {"msg": "Usuário criado com sucesso"}
+        return {"msg": "Conta criada com sucesso 🚀"}
 
     except Exception as e:
-        print("ERRO REAL:", e)  # 👈 vai aparecer no Render
         raise HTTPException(status_code=500, detail=str(e))
+
+    
 
 @app.post("/recuperar-senha")
 def recuperar_senha(data: dict = Body(...), db: Session = Depends(get_db)):

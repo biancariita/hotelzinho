@@ -138,7 +138,7 @@ class UsuarioCreate(BaseModel):
     nome: str
     email: str
     senha: str
-    empresa_id: int
+    nome_empresa: str
 
 
 class Token(BaseModel):
@@ -232,7 +232,7 @@ class Config:
     from_attributes = True
 
 class ConfiguracaoFinanceira(BaseModel):
-    svalor_hora: float | None = None
+    valor_hora: float | None = None
     valor_diaria: float | None = None
     valor_semanal_integral: float | None = None
     valor_semanal_meio: float | None = None
