@@ -1656,24 +1656,28 @@ def cadastro_page(request: Request):
 
 
 @app.post("/cadastro")
-def cadastrar_usuario_simples(dados: schemas.UsuarioCreate, db: Session = Depends(get_db)):
+def cadastrar_usuario_simples(dados: UsuarioCreate, db: Session = Depends(get_db)):
+    try:
+        existe = db.query(Usuario).filter(Usuario.email == dados.email).first()
 
-    existe = db.query(Usuario).filter(Usuario.email == dados.email).first()
+        if existe:
+            raise HTTPException(status_code=400, detail="Email já cadastrado")
 
-    if existe:
-        raise HTTPException(status_code=400, detail="Usuário já existe")
+        novo = Usuario(
+            nome=dados.nome,
+            email=dados.email,
+            senha_hash=gerar_hash_senha(dados.senha),
+            empresa_id=dados.empresa_id
+        )
 
-    novo = Usuario(
-        nome=dados.nome,
-        email=dados.email,
-        senha_hash=gerar_hash_senha(dados.senha),
-        empresa_id=dados.empresa_id
-    )
+        db.add(novo)
+        db.commit()
 
-    db.add(novo)
-    db.commit()
+        return {"msg": "Usuário criado com sucesso"}
 
-    return {"msg": "Usuário criado com sucesso"}
+    except Exception as e:
+        print("ERRO REAL:", e)  # 👈 vai aparecer no Render
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/recuperar-senha")
 def recuperar_senha(data: dict = Body(...), db: Session = Depends(get_db)):
