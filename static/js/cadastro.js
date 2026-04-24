@@ -8,10 +8,20 @@ async function cadastrar() {
         headers: {
             "Content-Type": "application/json"
         },
-        body: JSON.stringify({ nome, email, senha })
+        body: JSON.stringify({
+            nome,
+            email,
+            senha,
+            empresa_id: 1
+        })
     });
 
     const data = await res.json();
+
+    if (!res.ok) {
+        document.getElementById("msg").innerText = data.detail || "Erro ao cadastrar";
+        return;
+    }
 
     document.getElementById("msg").innerText = data.msg;
 }
