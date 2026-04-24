@@ -1343,11 +1343,11 @@ def alterar_senha(
         raise HTTPException(status_code=400, detail="Dados inválidos")
 
     # verifica senha atual
-    if not pwd_context.verify(senha_atual, usuario.senha):
+    if not pwd_context.verify(senha_atual, usuario.senha_hash):
         raise HTTPException(status_code=400, detail="Senha atual incorreta")
 
     # atualiza senha
-    usuario.senha = pwd_context.hash(nova_senha)
+    usuario.senha_hash = pwd_context.hash(nova_senha)
     db.commit()
 
     return {"msg": "Senha atualizada com sucesso"}
@@ -1656,30 +1656,22 @@ def cadastro_page(request: Request):
 
 
 @app.post("/cadastro")
-def cadastrar_usuario_simples(dados: dict):
-    db = SessionLocal()
+def cadastrar_usuario_simples(dados: schemas.UsuarioCreate, db: Session = Depends(get_db)):
 
-    nome = dados.get("nome")
-    email = dados.get("email")
-    senha = dados.get("senha")
-
-    if not nome or not email or not senha:
-        return {"msg": "Dados incompletos"}
-
-    existe = db.query(Usuario).filter(Usuario.email == email).first()
+    existe = db.query(Usuario).filter(Usuario.email == dados.email).first()
 
     if existe:
-        return {"msg": "Usuário já existe"}
+        raise HTTPException(status_code=400, detail="Usuário já existe")
 
     novo = Usuario(
-        nome=nome,
-        email=email,
-        senha_hash=gerar_hash_senha(senha)
+        nome=dados.nome,
+        email=dados.email,
+        senha_hash=gerar_hash_senha(dados.senha),
+        empresa_id=dados.empresa_id
     )
 
     db.add(novo)
     db.commit()
-    db.close()
 
     return {"msg": "Usuário criado com sucesso"}
 
