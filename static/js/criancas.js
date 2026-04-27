@@ -147,7 +147,7 @@ async function checkout(id, btn) {
                 "Authorization": "Bearer " + localStorage.getItem("token")
             },
             body: JSON.stringify({
-                checkout: data && data !== "" ? data : null
+                checkout: null
             })
         });
 

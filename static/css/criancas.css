@@ -84,3 +84,147 @@ gap:6px;
 .toast.error {
     background: linear-gradient(135deg, #880604, #6e1313);
 }
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    border-radius: 12px;
+    overflow: hidden;
+    background: white;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+}
+
+thead {
+    background: linear-gradient(135deg, #4f46e5, #3b82f6);
+    color: white;
+}
+
+th, td {
+    padding: 12px;
+}
+
+tbody tr {
+    border-bottom: 1px solid #eee;
+}
+
+tbody tr:hover {
+    background: #f9fafb;
+}
+
+/* título mês */
+tbody tr td[colspan] {
+    background: #eef2ff;
+    font-weight: 600;
+}
+
+/* 🔥 FUNDO DA PÁGINA */
+body {
+    background: #f3f4f6;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+}
+
+/* 🔥 TÍTULOS */
+h1 {
+    font-size: 26px;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+h2 {
+    font-size: 20px;
+    margin: 20px 0 10px;
+    color: #111827;
+}
+
+/* 🔥 CARD DAS SEÇÕES */
+.section-card {
+    background: white;
+    padding: 18px;
+    border-radius: 14px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+    margin-bottom: 20px;
+}
+
+/* 🔥 TABELA MAIS MODERNA */
+table {
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+/* 🔥 CABEÇALHO MAIS BONITO */
+thead {
+    background: linear-gradient(135deg, #4f46e5, #6366f1);
+}
+
+thead th {
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+/* 🔥 LINHAS */
+tbody td {
+    font-size: 14px;
+    color: #1f2937 !important;
+}
+
+/* 🔥 HOVER MAIS SUAVE */
+tbody tr:hover {
+    background: #eef2ff;
+}
+
+/* 🔥 LINHA DO MÊS */
+tbody tr td[colspan] {
+    background: #eef2ff;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+/* 🔥 STATUS */
+.status-pago {
+    color: #10b981;
+    font-weight: 600;
+}
+
+.status-pendente {
+    color: #ef4444;
+    font-weight: 600;
+}
+
+/* 🔥 VALOR */
+.valor {
+    font-weight: 600;
+    color: #111827;
+}
+
+/* 🔥 INFORMAÇÕES DA CRIANÇA */
+#dados_crianca {
+    background: white;
+    padding: 18px;
+    border-radius: 14px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+    margin-bottom: 20px;
+}
+
+#dados_crianca p {
+    margin: 4px 0;
+    color: #374151;
+}
+
+/* 🔥 SEPARAÇÃO VISUAL */
+hr {
+    border: none;
+    height: 1px;
+    background: #e5e7eb;
+    margin: 20px 0;
+}
+
+.mes-toggle {
+    cursor: pointer;
+    background: #eef2ff;
+    font-weight: 600;
+    transition: 0.2s;
+}
+
+.mes-toggle:hover {
+    background: #e0e7ff;
+}

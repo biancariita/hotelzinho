@@ -600,6 +600,47 @@ function carregarFinanceiro(){
 // carregar automático
 document.addEventListener("DOMContentLoaded", carregarFinanceiro)
 
+async function abrirHistorico(tipo) {
+
+    const res = await fetch(`/${tipo}-todos`, {
+        headers: {
+            "Authorization": "Bearer " + localStorage.getItem("token")
+        }
+    });
+
+    const dados = await res.json();
+
+    const lista = document.getElementById("listaFinanceiro");
+    lista.innerHTML = "";
+
+    for (let mes in dados) {
+
+        const bloco = document.createElement("div");
+
+        bloco.innerHTML = `
+            <h3>Mês ${mes}</h3>
+        `;
+
+        dados[mes].forEach(item => {
+
+            const div = document.createElement("div");
+            div.className = "item-historico";
+
+            div.innerHTML = `
+                <span>${item.descricao}</span>
+                <strong>R$ ${item.valor}</strong>
+            `;
+
+            bloco.appendChild(div);
+        });
+
+        lista.appendChild(bloco);
+    }
+
+    document.getElementById("modalFinanceiro").style.display = "flex";
+}
+
+
 
 function desconto(id){
 

@@ -2,7 +2,7 @@ const token = localStorage.getItem("token")
 
 const id = window.location.pathname.split("/")[2]
 
-// 🔥 FUNÇÃO BOTÃO (AGORA NO LUGAR CERTO)
+// 🔥 BOTÃO STATUS
 function ajustarBotaoStatus(c) {
     const btn = document.getElementById("btnStatus")
 
@@ -17,7 +17,7 @@ function ajustarBotaoStatus(c) {
     }
 }
 
-// 🔥 BUSCAR DADOS DA CRIANÇA
+// 🔥 BUSCAR DADOS
 fetch(`/api/ficha-crianca/${id}`,{
 headers:{
 "Authorization":"Bearer "+token
@@ -40,30 +40,58 @@ document.getElementById("dados_crianca").innerHTML = `
 <p><b>Autorização imagem:</b> ${c.autorizacao_imagem ? "Sim" : "Não"}</p>
 `
 
-// 🔥 AJUSTA BOTÃO AQUI (CORRETO)
 ajustarBotaoStatus(c)
 
-// 🔥 HISTÓRICO PRESENÇA
+// =========================
+// 🔥 PRESENÇA POR MÊS
+// =========================
 const tabelaPresenca = document.getElementById("historico_presenca")
 tabelaPresenca.innerHTML = ""
 
-data.presencas.forEach(p=>{
-const linha = document.createElement("tr")
+const porMes = {}
 
-linha.innerHTML = `
-<td>${p.checkin}</td>
-<td>${p.checkout || "-"}</td>
-<td>
-<button onclick="editarPresenca(${p.id}, '${p.checkin}', '${p.checkout || ""}')">
-Editar
-</button>
-</td>
-`
+data.presencas.forEach(p => {
+    const d = new Date(p.checkin)
+    const mes = `${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`
 
-tabelaPresenca.appendChild(linha)
+    if(!porMes[mes]) porMes[mes] = []
+    porMes[mes].push(p)
 })
 
-// 🔥 HISTÓRICO FINANCEIRO
+for (let mes in porMes){
+
+    // 🔹 TÍTULO DO MÊS
+    const titulo = document.createElement("tr")
+
+    titulo.innerHTML = `
+        <td colspan="3" class="mes-toggle" data-mes="${mes}">
+            📅 ${mes}
+        </td>
+    `
+
+    tabelaPresenca.appendChild(titulo)
+
+    // 🔹 LINHAS
+    porMes[mes].forEach(p=>{
+        const linha = document.createElement("tr")
+
+        linha.innerHTML = `
+            <td>${formatarDataBR(p.checkin)}</td>
+            <td>${p.checkout ? formatarDataBR(p.checkout) : "-"}</td>
+            <td>${calcularHoras(p.checkin, p.checkout)}</td>
+        `
+
+        linha.classList.add("linha-mes")
+        linha.setAttribute("data-mes", mes)
+        linha.style.display = "none" // 🔥 começa fechado
+
+        tabelaPresenca.appendChild(linha)
+    })
+}
+
+// =========================
+// 🔥 FINANCEIRO
+// =========================
 const tabelaFinanceiro = document.getElementById("historico_financeiro")
 tabelaFinanceiro.innerHTML = ""
 
@@ -71,8 +99,16 @@ data.cobrancas.forEach(c=>{
 const linha = document.createElement("tr")
 
 linha.innerHTML = `
-<td>R$ ${c.valor}</td>
-<td>${c.pago ? "Pago" : "Pendente"}</td>
+<td>R$ ${Number(c.valor).toFixed(2)}</td>
+
+<td>
+    ${c.pago 
+        ? `<span style="color:#10b981;">Pago</span><br>
+           <small>${formatarDataBR(c.data_pagamento)}</small>`
+        : `<span style="color:#ef4444;">Pendente</span><br>
+           <small>-</small>`
+    }
+</td>
 `
 
 tabelaFinanceiro.appendChild(linha)
@@ -80,97 +116,76 @@ tabelaFinanceiro.appendChild(linha)
 
 })
 
+// =========================
+// 🔥 FUNÇÕES
+// =========================
 
-// 🔥 FUNÇÃO REATIVAR
 function reativar(id){
-
 fetch(`/reativar-crianca/${id}`,{
 method:"PUT",
-headers:{
-Authorization:"Bearer "+token
-}
+headers:{ Authorization:"Bearer "+token }
 })
 .then(res => {
-
 if(res.ok){
 mostrarToast("Criança reativada ✅", "success")
-} else {
-mostrarToast("Erro ao reativar", "error")
 }
-
-setTimeout(() => {
-window.location.reload()
-}, 1000)
-
+setTimeout(()=>location.reload(),1000)
 })
-
 }
 
-
-// 🔥 (SE NÃO TIVER) DESATIVAR
 function desativar(id){
-
 fetch(`/desativar-crianca/${id}`,{
 method:"PUT",
-headers:{
-Authorization:"Bearer "+token
-}
+headers:{ Authorization:"Bearer "+token }
 })
 .then(res => {
-
 if(res.ok){
 mostrarToast("Criança desativada ❌", "error")
-} else {
-mostrarToast("Erro ao desativar", "error")
+}
+setTimeout(()=>location.reload(),1000)
+})
 }
 
-setTimeout(() => {
-window.location.reload()
-}, 1000)
+// 🔥 FORMATAR DATA
+function formatarDataBR(data){
+    if (!data) return "-"
+
+    const d = new Date(data)
+
+    const dia = String(d.getDate()).padStart(2, '0')
+    const mes = String(d.getMonth() + 1).padStart(2, '0')
+    const ano = d.getFullYear()
+
+    const hora = String(d.getHours()).padStart(2, '0')
+    const min = String(d.getMinutes()).padStart(2, '0')
+
+    return `${dia}/${mes}/${ano} - ${hora}:${min}`
+}
+
+// 🔥 CALCULAR HORAS
+function calcularHoras(checkin, checkout){
+    if (!checkout) return "-"
+
+    const inicio = new Date(checkin)
+    const fim = new Date(checkout)
+
+    const horas = (fim - inicio) / (1000 * 60 * 60)
+
+    return horas.toFixed(1) + "h"
+}
+
+document.addEventListener("click", function(e){
+
+    if(e.target.classList.contains("mes-toggle")){
+
+        const mes = e.target.getAttribute("data-mes")
+
+        const linhas = document.querySelectorAll(`.linha-mes[data-mes='${mes}']`)
+
+        linhas.forEach(linha => {
+            linha.style.display = linha.style.display === "none" ? "table-row" : "none"
+        })
+
+    }
 
 })
-
-}
-
-function editarPresenca(id, checkin, checkout){
-
-document.getElementById("presenca_id").value = id
-
-// formata data pro input
-document.getElementById("edit-checkin").value = formatarData(checkin)
-document.getElementById("edit-checkout").value = checkout ? formatarData(checkout) : ""
-
-document.getElementById("modal-editar").style.display = "block"
-}
-
-function formatarData(data){
-return new Date(data).toISOString().slice(0,16)
-}
-
-function salvarEdicao(){
-
-const id = document.getElementById("presenca_id").value
-const checkin = document.getElementById("edit-checkin").value
-const checkout = document.getElementById("edit-checkout").value
-
-fetch(`/presencas/${id}`,{
-method:"PUT",
-headers:{
-"Content-Type":"application/json",
-Authorization:"Bearer "+token
-},
-body: JSON.stringify({
-checkin: checkin,
-checkout: checkout
-})
-})
-.then(()=>{
-fecharModalEditar()
-location.reload()
-})
-
-}
-
-function fecharModalEditar(){
-document.getElementById("modal-editar").style.display = "none"
-}

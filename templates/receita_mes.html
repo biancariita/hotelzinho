@@ -6,8 +6,6 @@
     <link rel="icon" href="/static/img/icone.png">
     <link rel="stylesheet" href="/static/css/dashboard.css">
     <link rel="stylesheet" href="/static/css/financeiro.css">
-
-    
 </head>
 
 <body>
@@ -28,16 +26,19 @@
 
 <div class="resumo-mes">
 
-    <div class="card-financeiro">
+    <!-- FATURAMENTO -->
+    <div class="card-financeiro faturamento" onclick="abrirHistoricoFinanceiro('faturamento')">
         <span>Faturamento</span>
         <h2 id="faturamento">R$ 0</h2>
     </div>
 
-    <div class="card-financeiro gasto" onclick="toggleGastos()">
+    <!-- GASTOS -->
+    <div class="card-financeiro gasto" onclick="abrirHistoricoFinanceiro('gastos')">
         <span>Gastos</span>
         <h2 id="gastos">R$ 0</h2>
     </div>
 
+    <!-- LUCRO -->
     <div class="card-financeiro lucro">
         <span>Lucro</span>
         <h2 id="lucro">R$ 0</h2>
@@ -45,16 +46,23 @@
 
 </div>
 
-<button onclick="abrirModalGasto()" class="btn-add">
-➕ Adicionar Gasto
-</button>
+<!-- 🔥 MODAL LISTA -->
+<div id="modalFinanceiro" class="modal">
+  <div class="modal-content" style="width:600px">
 
+    <div style="display:flex; justify-content:space-between;">
+        <h2 id="tituloFinanceiro"></h2>
+        <span onclick="fecharFinanceiro()">✕</span>
+    </div>
 
-<div id="listaGastos" style="display:none;"></div>
+    <button id="btnAdicionar" class="btn-add"></button>
 
+    <div id="listaFinanceiro"></div>
+
+  </div>
 </div>
 
-<!-- MODAL -->
+<!-- MODAIS ANTIGOS (MANTÉM) -->
 <div id="modalGasto" class="modal">
   <div class="modal-content">
     <h3>Novo Gasto</h3>
@@ -64,6 +72,18 @@
 
     <button onclick="salvarGasto()">Salvar</button>
     <button onclick="fecharModalGasto()">Cancelar</button>
+  </div>
+</div>
+
+<div id="modalFaturamento" class="modal">
+  <div class="modal-content">
+    <h3>Novo Faturamento</h3>
+
+    <input id="descricaoFaturamento" placeholder="Descrição">
+    <input id="valorFaturamento" type="number" placeholder="Valor">
+
+    <button onclick="salvarFaturamento()">Salvar</button>
+    <button onclick="fecharModalFaturamento()">Cancelar</button>
   </div>
 </div>
 

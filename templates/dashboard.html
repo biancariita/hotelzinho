@@ -37,23 +37,51 @@
 
 <div class="cards">
 
-<div class="card" onclick="mostrarLista('presentes')">
-  <h3>Presentes agora</h3>
-  <p id="presentesAgora">0</p>
-</div>
+  <div class="card" onclick="mostrarLista('presentes')">
+    <h3>Presentes agora</h3>
+    <p id="presentesAgora">0</p>
+  </div>
 
-<div class="card" onclick="mostrarLista('checkin')">
-  <h3>Check-in hoje</h3>
-  <p id="totalHoje">0</p>
-</div>
+  <div class="card" onclick="mostrarLista('checkin')">
+    <h3>Check-in hoje</h3>
+    <p id="totalHoje">0</p>
+  </div>
 
-<div class="card" onclick="mostrarLista('sairam')">
-  <h3>Já saíram</h3>
-  <p id="jaSairam">0</p>
-</div>
+  <div class="card" onclick="mostrarLista('sairam')">
+    <h3>Já saíram</h3>
+    <p id="jaSairam">0</p>
+  </div>
 
-<div class="card card-receita" onclick="abrirFinanceiroMes()">
-  <h3>Receita do mês</h3>
+  <div class="card card-receita" onclick="abrirFinanceiroMes()">
+    <h3>Receita do mês</h3>
+  </div>
+
+</div> <!-- FECHA AQUI -->
+
+<!-- AGORA FORA DOS CARDS -->
+<div class="listas-dashboard">
+
+  <div class="bloco-lista">
+    <div class="header-lista">
+      <span>👶 Crianças presentes</span>
+    </div>
+    <div id="lista-presentes" class="lista-moderna"></div>
+  </div>
+
+  <div class="bloco-lista">
+    <div class="header-lista">
+      <span>➡️ Check-in hoje</span>
+    </div>
+    <div id="lista-checkin" class="lista-moderna"></div>
+  </div>
+
+  <div class="bloco-lista">
+    <div class="header-lista">
+      <span>⬅️ Já saíram</span>
+    </div>
+    <div id="lista-sairam" class="lista-moderna"></div>
+  </div>
+
 </div>
 
 <!-- Modal -->
@@ -61,7 +89,7 @@
   <div class="modal-content">
     <span class="fechar" onclick="fecharModal()">X</span>
     <h2 id="titulo-modal"></h2>
-    <ul id="lista-criancas"></ul>
+    <div id="lista-criancas"></div>
   </div>
 </div>
 

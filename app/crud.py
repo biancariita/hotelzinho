@@ -61,7 +61,7 @@ def fazer_checkin(db: Session, crianca_id: int, empresa_id: int):
     nova_presenca = Presenca(
         crianca_id=crianca_id,
         empresa_id=empresa_id,
-        checkin=datetime.utcnow()
+        checkin=datetime.now()
     )
     inadimplente = db.query(models.Mensalidade)\
     .filter(
@@ -237,7 +237,7 @@ def fechar_presencas_antigas(db):
         .all()
 
     for p in presencas:
-        p.checkout = datetime.utcnow()
+        p.checkout = datetime.now()
 
     db.commit()
 

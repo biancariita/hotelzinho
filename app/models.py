@@ -178,12 +178,10 @@ class Gasto(Base):
     __tablename__ = "gastos"
 
     id = Column(Integer, primary_key=True)
-    empresa_id = Column(Integer, ForeignKey("empresas.id"))
-
     descricao = Column(String)
     valor = Column(Float)
-
     mes = Column(String)
+    empresa_id = Column(Integer)
 
 class Fechamento(Base):
     __tablename__ = "fechamentos"
@@ -193,3 +191,11 @@ class Fechamento(Base):
     mes = Column(String)
     fechado = Column(Boolean, default=False)
 
+class Faturamento(Base):
+    __tablename__ = "faturamentos"
+
+    id = Column(Integer, primary_key=True)
+    descricao = Column(String)
+    valor = Column(Float)
+    mes = Column(String)  # 🔥 ESSENCIAL (04/2026)
+    empresa_id = Column(Integer)

@@ -243,3 +243,6 @@ class ConfiguracaoFinanceira(BaseModel):
     tipo_cobranca: str  # hora, diaria, mensal
     tipo_cobranca: str | None = None
 
+class FaturamentoCreate(BaseModel):
+    descricao: str
+    valor: float

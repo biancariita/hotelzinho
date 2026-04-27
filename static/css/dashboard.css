@@ -639,3 +639,109 @@ white-space:nowrap;
         transform: translateX(0);
     }
 }
+
+/* LISTA MODERNA */
+
+#lista-criancas {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 15px;
+}
+
+.item-crianca {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f9fafc;
+    padding: 14px;
+    border-radius: 14px;
+    transition: 0.2s;
+    border: 1px solid #eee;
+}
+
+.item-crianca:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+}
+
+.info-crianca {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.avatar-crianca {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #4b4eff, #6a5acd);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.nome-crianca {
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.status {
+    font-size: 12px;
+    color: #777;
+}
+
+.horario {
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 20px;
+    font-weight: 500;
+}
+
+/* CORES POR STATUS */
+
+.presente {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.checkin {
+    background: #dbeafe;
+    color: #1e3a8a;
+}
+
+.saiu {
+    background: #f3e8ff;
+    color: #6b21a8;
+}
+
+/* GRID DAS LISTAS */
+.listas-dashboard {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
+/* BLOCO */
+.bloco-lista {
+    background: white;
+    border-radius: 16px;
+    padding: 15px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+}
+
+/* HEADER */
+.header-lista {
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+/* RESPONSIVO */
+@media(max-width: 900px){
+    .listas-dashboard {
+        grid-template-columns: 1fr;
+    }
+}

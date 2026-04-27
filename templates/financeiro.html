@@ -5,6 +5,8 @@
     <link rel="icon" href="/static/img/icone.png">
     <link rel="stylesheet" href="/static/css/dashboard.css">
     <link rel="stylesheet" href="/static/css/pix.css">
+    <link rel="stylesheet" href="/static/css/financeiro.css">
+
     <link rel="stylesheet"
     href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
@@ -20,10 +22,10 @@
 <p onclick="window.location.href='/criancas-page'">Presença</p>
 <p onclick="window.location.href='/financeiro-page'">Financeiro</p>
 <p onclick="logout()">Sair</p>
+
 <div class="sidebar-config" onclick="window.location.href='/configuracoes-page'">
 <i class="fa-solid fa-gear"></i>
 <span>Configurações</span>
-</div>
 </div>
 
 </div>
@@ -50,22 +52,24 @@
 
     </div>
 
-<div id="modalHistorico" class="modal">
-    <div class="modal-mod">
+    <!-- 🔥 MODAL HISTÓRICO (já existente) -->
+    <div id="modalHistorico" class="modal">
+        <div class="modal-mod">
 
-        <div class="header-historico">
-            <div class="avatar"></div>
-            <h2 id="tituloHistorico">Histórico</h2>
-            <span class="fechar" onclick="fecharHistorico()">✕</span>
+            <div class="header-historico">
+                <div class="avatar"></div>
+                <h2 id="tituloHistorico">Histórico</h2>
+                <span class="fechar" onclick="fecharHistorico()">✕</span>
+            </div>
+
+            <div id="conteudoHistorico" class="conteudo-historico"></div>
+
+            <button class="btn-fechar" onclick="fecharHistorico()">Fechar</button>
+
         </div>
-
-        <div id="conteudoHistorico" class="conteudo-historico"></div>
-
-        <button class="btn-fechar" onclick="fecharHistorico()">Fechar</button>
-
     </div>
-</div>
 
+    <!-- 🔥 PIX -->
     <div class="pix-container">
 
         <div class="pix-title">Pagamento via PIX</div>
@@ -84,10 +88,23 @@
 
     </div>
 
+    <!-- 🚀 NOVO MODAL FINANCEIRO (PROFISSIONAL) -->
+    <div id="modalFinanceiro" class="modal">
+        <div class="modal-content" style="width:700px">
+
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h2 id="tituloFinanceiro">Histórico Financeiro</h2>
+                <span class="fechar" onclick="fecharFinanceiro()">✕</span>
+            </div>
+
+            <div id="listaFinanceiro" style="margin-top:20px;"></div>
+
+        </div>
+    </div>
+
 </div>
 
 <canvas id="graficoFinanceiro"></canvas>
-
 
 <script src="/static/js/financeiro.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

@@ -622,6 +622,18 @@ def pagar_cobranca(
     cobranca.data_pagamento = datetime.now()
 
     db.commit()
+
+    mes = datetime.now().strftime("%m/%Y")
+
+    novo_faturamento = models.Faturamento(
+        descricao=f"Mensalidade - {cobranca.crianca.nome}",
+        valor=cobranca.valor,
+        mes=mes,
+        empresa_id=cobranca.empresa_id
+    )
+
+    db.add(novo_faturamento)
+    db.commit()
     db.refresh(cobranca)
 
     return {
@@ -1429,8 +1441,6 @@ def gerar_mensagem_cobranca(
         "mensagem": mensagem
     }
 
-from datetime import datetime
-
 @app.get("/historico-crianca/{crianca_id}")
 def historico_crianca(
     crianca_id: int,
@@ -1558,12 +1568,13 @@ def editar_presenca(
     if not presenca:
         raise HTTPException(status_code=404, detail="Presença não encontrada")
 
-    # 🔥 atualiza datas
-    if "checkin" in dados:
-        presenca.checkin = dados["checkin"]
+   # 🔥 CHECKIN
+    if "checkin" in dados and dados["checkin"]:
+        presenca.checkin = datetime.fromisoformat(dados["checkin"])
 
+    # 🔥 CHECKOUT
     if "checkout" in dados:
-        presenca.checkout = dados["checkout"]
+        presenca.checkout = datetime.now()
 
     db.commit()
     db.refresh(presenca)
@@ -1571,25 +1582,29 @@ def editar_presenca(
     return presenca
 
 @app.post("/gastos")
-def criar_gasto(
-    dados: dict,
-    db: Session = Depends(get_db),
-    usuario = Depends(get_usuario_atual)
-):
+def criar_gasto(dados: dict, db: Session = Depends(get_db), usuario=Depends(get_usuario_atual)):
 
-    gasto = models.Gasto(
-        descricao=dados["descricao"],
-        valor=dados["valor"],
-        empresa_id=usuario.empresa_id,
-        mes=dados["mes"]
+    from datetime import datetime
+
+    mes = datetime.now().strftime("%m/%Y")  # 🔥 AQUI TAMBÉM
+
+    novo = models.Gasto(
+        descricao=dados.get("descricao"),
+        valor=dados.get("valor"),
+        mes=mes,
+        empresa_id=usuario.empresa_id
     )
 
-    db.add(gasto)
+    db.add(novo)
     db.commit()
 
-    return gasto
+    return {"msg": "ok"}
 
-
+@app.get("/gastos-mes")
+def gastos_mes(db: Session = Depends(get_db), usuario=Depends(get_usuario_atual)):
+    return db.query(models.Gasto).filter(
+        models.Gasto.empresa_id == usuario.empresa_id
+    ).all()
 
 @app.get("/gastos")
 def listar_gastos(
@@ -1626,7 +1641,6 @@ def editar_gasto(id: int, dados: dict, db: Session = Depends(get_db), usuario=De
 
     return gasto
 
-
 @app.delete("/gastos/{id}")
 def deletar_gasto(id: int, db: Session = Depends(get_db), usuario=Depends(get_usuario_atual)):
 
@@ -1644,6 +1658,55 @@ def deletar_gasto(id: int, db: Session = Depends(get_db), usuario=Depends(get_us
     db.commit()
 
     return {"ok": True}
+
+@app.post("/faturamento")
+def criar_faturamento(dados: dict, db: Session = Depends(get_db), usuario=Depends(get_usuario_atual)):
+
+    from datetime import datetime
+
+    mes = datetime.now().strftime("%m/%Y")  # 🔥 AQUI
+
+    novo = models.Faturamento(
+        descricao=dados.get("descricao"),
+        valor=dados.get("valor"),
+        mes=mes,  # 🔥 SALVA O MES
+        empresa_id=usuario.empresa_id
+    )
+
+    db.add(novo)
+    db.commit()
+
+    return {"msg": "ok"}
+
+@app.get("/faturamento-todos")
+def faturamento_todos(db: Session = Depends(get_db), usuario=Depends(get_usuario_atual)):
+
+    dados = db.query(models.Faturamento)\
+        .filter(models.Faturamento.empresa_id == usuario.empresa_id)\
+        .all()
+
+    resultado = {}
+
+    for item in dados:
+        if item.mes not in resultado:
+            resultado[item.mes] = []
+
+        resultado[item.mes].append({
+            "descricao": item.descricao,
+            "valor": item.valor
+        })
+
+    return resultado
+
+@app.delete("/faturamento/{id}")
+def deletar_faturamento(id: int, db: Session = Depends(get_db)):
+    item = db.query(models.Faturamento).get(id)
+    db.delete(item)
+    db.commit()
+
+@app.get("/faturamento-mes")
+def faturamento_mes(db: Session = Depends(get_db)):
+    return db.query(models.Faturamento).all()
 
 @app.get("/calendario-page")
 def calendario_page(request: Request):

@@ -227,7 +227,7 @@ function salvarCrianca(){
 
 const id = document.getElementById("crianca_id").value
 
-const nome = document.getElementById("nome").value
+const nome = capitalizarTexto(document.getElementById("nome").value)
 const data_nascimento = document.getElementById("data_nascimento").value
 const alergias = document.getElementById("alergias").value
 const observacoes = document.getElementById("observacoes").value
@@ -256,7 +256,7 @@ const enderecos = document.querySelectorAll(".resp-endereco")
 nomes.forEach((el, i) => {
 
 responsaveis.push({
-nome: el.value,
+nome: capitalizarTexto(el.value),
 telefone: telefones[i]?.value || "",
 cpf: cpfs[i]?.value || "",
 endereco: enderecos[i]?.value || ""
@@ -343,18 +343,6 @@ window.location.href="/login-page"
 
 // 🔥 INICIAL
 carregarCriancas()
-
-document.addEventListener("input", function(e){
-
-    if(e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA"){
-
-        // ignora campos numéricos e data
-        if(e.target.type === "number" || e.target.type === "date") return
-
-        e.target.value = capitalizarTexto(e.target.value)
-    }
-
-})
 
 function formatarTelefone(valor){
     valor = valor.replace(/\D/g, "")

@@ -77,6 +77,79 @@ lista.innerHTML = "";
 
 }
 
+async function carregarListasDashboard() {
+
+  const headers = { Authorization: "Bearer " + token };
+
+  // PRESENTES
+  const res1 = await fetch("/presentes", { headers });
+  const presentes = await res1.json();
+
+  renderLista("lista-presentes", presentes, "presente");
+
+  // CHECKIN
+  const res2 = await fetch("/relatorio-hoje", { headers });
+  const checkins = await res2.json();
+
+  renderLista("lista-checkin", checkins, "checkin");
+
+  // SAÍRAM
+  const sairam = checkins.filter(p => p.checkout !== null);
+
+  renderLista("lista-sairam", sairam, "saiu");
+}
+
+
+function renderLista(id, dados, tipo) {
+
+  const lista = document.getElementById(id);
+  lista.innerHTML = "";
+
+  dados.forEach(p => {
+
+    const nome = p.crianca?.nome || "Sem nome";
+    const inicial = nome.charAt(0).toUpperCase();
+
+    let horario = "";
+
+    if (tipo === "presente" || tipo === "checkin") {
+      horario = p.checkin
+        ? new Date(p.checkin + "Z").toLocaleTimeString('pt-BR', {
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        : "";
+    }
+
+    if (tipo === "saiu") {
+      horario = p.checkout
+        ? new Date(p.checkout).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+        : "";
+    }
+
+    const div = document.createElement("div");
+    div.className = "item-crianca";
+
+    div.innerHTML = `
+      <div class="info-crianca">
+        <div class="avatar-crianca">${inicial}</div>
+        <div>
+          <div class="nome-crianca">${nome}</div>
+          <div class="status">${tipo}</div>
+        </div>
+      </div>
+      <div class="horario ${tipo}">${horario}</div>
+    `;
+
+    lista.appendChild(div);
+  });
+}
+
+  carregarListasDashboard();
+
+  setInterval(() => {
+    carregarListasDashboard();
+  }, 5000);
 window.fecharModal = function () {
   const modal = document.getElementById("modal");
 
@@ -173,7 +246,7 @@ async function verificarAniversarios() {
     data.forEach(c => {
         if (c.dias === 0) {
             mostrarNotificacao(
-                "🎂 Hoje é aniversário",
+                " Hoje é aniversário",
                 `${c.nome} está fazendo aniversário hoje!`,
                 "🎂"
             );
