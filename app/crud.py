@@ -10,6 +10,7 @@ from app.models import Mensalidade
 from sqlalchemy import func
 from app import models
 
+
 import requests
 
 def criar_usuario(db: Session, usuario: schemas.UsuarioCreate):
@@ -77,6 +78,7 @@ def fazer_checkin(db: Session, crianca_id: int, empresa_id: int):
     db.add(nova_presenca)
     db.commit()
     db.refresh(nova_presenca)
+    print("CHECKIN SALVO:", datetime.now())
 
     return nova_presenca
 
@@ -123,111 +125,65 @@ def adicionar_detalhe(cobranca, tipo, valor):
 
 def fazer_checkout(db: Session, presenca_id: int):
 
-    presenca = db.query(models.Presenca)\
-        .filter(models.Presenca.id == presenca_id)\
-        .first()
+    presenca = db.query(models.Presenca).filter(models.Presenca.id == presenca_id).first()
 
     if not presenca:
-        raise Exception("Presença não encontrada")
-
-    if presenca.checkout:
-        return presenca
+        return None
 
     presenca.checkout = datetime.now()
 
-    crianca = db.query(models.Crianca)\
-        .filter(models.Crianca.id == presenca.crianca_id)\
+    crianca = presenca.crianca
+
+    # 🔥 cálculo extra
+    valor_extra = calcular_valor_extra(
+        presenca.checkin,
+        presenca.checkout,
+        crianca.horas_contratadas,
+        crianca.tolerancia_minutos
+    )
+
+    # 🔥 formato padrão (IMPORTANTE)
+    mes = datetime.now().strftime("%m/%Y")
+
+    # 🔥 tenta buscar cobrança
+    cobranca = db.query(models.Cobranca)\
+        .filter(
+            models.Cobranca.crianca_id == crianca.id,
+            models.Cobranca.mes == mes
+        )\
         .first()
 
-    empresa = db.query(models.Empresa)\
-        .filter(models.Empresa.id == crianca.empresa_id)\
-        .first()
+    # 🔥 SE NÃO EXISTIR → CRIA
+    if not cobranca:
+        cobranca = models.Cobranca(
+            crianca_id=crianca.id,
+            empresa_id=crianca.empresa_id,
+            valor=crianca.valor or 0,
+            mes=mes
+        )
+        db.add(cobranca)
+        db.flush()  # 🔥 ESSENCIAL
 
-    plano = crianca.tipo_cobranca
-    dia_semana = presenca.checkin.weekday()
+    # 🔥 soma valor
+    ja_tem = db.query(models.CobrancaItem)\
+    .filter(
+        models.CobrancaItem.cobranca_id == cobranca.id,
+        models.CobrancaItem.descricao == f"Hora extra - {presenca.checkin.strftime('%d/%m')}"
+    )\
+    .first()
 
-    # 🔥 calcular horas
-    horas = (presenca.checkout - presenca.checkin).total_seconds() / 3600
-    if horas < 0:
-        horas = 0
+    if valor_extra > 0 and not ja_tem:
+        cobranca.valor += valor_extra
 
-    def gerar_ou_somar(valor, tipo):
-
-        mes = datetime.now().strftime("%m/%Y")
-
-        cobranca = db.query(models.Cobranca)\
-            .filter(
-                models.Cobranca.crianca_id == crianca.id,
-                models.Cobranca.empresa_id == crianca.empresa_id,
-                models.Cobranca.mes == mes
-            )\
-            .first()
-
-        planos_fixos = ["mensal", "meio_periodo", "semanal", "semanal_meio"]
-
-        # 🟢 SE JÁ EXISTE COBRANÇA
-        if cobranca:
-
-            # 🚫 NÃO SOMA plano fixo novamente
-            if tipo in planos_fixos:
-                return
-
-            # ✅ SOMA apenas extras (sábado, hora, diária)
-            cobranca.valor += valor
-
-        else:
-            # 🟢 CRIA COBRANÇA INICIAL
-
-            cobranca = models.Cobranca(
-                crianca_id=crianca.id,
-                empresa_id=crianca.empresa_id,
-                valor=valor,
-                mes=mes,
-                pago=False,
-                tipo=tipo,
-                detalhes="[]"
-            )
-
-            db.add(cobranca)
-
-        adicionar_detalhe(cobranca, tipo, valor)
-
-    # 📆 sábado (SEMPRE soma)
-    if dia_semana == 5:
-        valor = empresa.valor_sabado or 0
-        gerar_ou_somar(valor, "sabado")
-
-    # ⏱ hora
-    elif plano == "hora":
-        valor = (empresa.valor_hora or 0) * horas
-        gerar_ou_somar(valor, "hora")
-
-    # 📅 diária
-    elif plano == "diaria":
-        valor = empresa.valor_diaria or 0
-        gerar_ou_somar(valor, "diaria")
-
-    # 📦 mensal integral
-    elif plano == "mensal":
-        valor = empresa.valor_mensal_integral or 0
-        gerar_ou_somar(valor, "mensal")
-
-    # 📦 mensal meio período
-    elif plano == "meio_periodo":
-        valor = empresa.valor_mensal_meio or 0
-        gerar_ou_somar(valor, "meio_periodo")
-
-    # 📊 semanal integral
-    elif plano == "semanal":
-        valor = empresa.valor_semanal_integral or 0
-        gerar_ou_somar(valor, "semanal")
-
-    # 📊 semanal meio período (NOVO)
-    elif plano == "semanal_meio":
-        valor = empresa.valor_semanal_meio or 0
-        gerar_ou_somar(valor, "semanal_meio")
+        item = models.CobrancaItem(
+            cobranca_id=cobranca.id,
+            descricao=f"Hora extra - {presenca.checkin.strftime('%d/%m')}",
+            valor=valor_extra
+        )
+        db.add(item)
 
     db.commit()
+
     return presenca
 
 def fechar_presencas_antigas(db):
@@ -270,8 +226,11 @@ def criar_crianca(db: Session, crianca: schemas.CriancaCreate, empresa_id: int):
         dia_vencimento=crianca.dia_vencimento,
         autorizacao_imagem=crianca.autorizacao_imagem,
         empresa_id=empresa_id,
+        plano=crianca.plano,
+        valor=crianca.valor,
+        horas_contratadas=crianca.horas_contratadas,
+        tolerancia_minutos=crianca.tolerancia_minutos,
         
-        tipo_cobranca=crianca.tipo_cobranca
     )
     db.add(db_crianca)
     db.commit()
@@ -295,29 +254,8 @@ def criar_crianca(db: Session, crianca: schemas.CriancaCreate, empresa_id: int):
     db.refresh(db_crianca)
 
     valor = 0
-
-    if crianca.tipo_cobranca in ["mensal", "meio_periodo"]:
-
-        empresa = db.query(models.Empresa)\
-            .filter(models.Empresa.id == empresa_id)\
-            .first()
-
-        if crianca.tipo_cobranca == "mensal":
-            valor = empresa.valor_mensal_integral or 0
-
-        elif crianca.tipo_cobranca == "meio_periodo":
-            valor = empresa.valor_mensal_meio or 0
-
-        mensalidade = models.Mensalidade(
-            crianca_id=db_crianca.id,
-            empresa_id=empresa_id,
-            valor=valor,
-            mes=datetime.today().strftime("%m/%Y")
-        )
-
-        db.add(mensalidade)
-        db.commit()
-        db.refresh(db_crianca)
+    db.commit()
+    db.refresh(db_crianca)
 
     return db_crianca
 
@@ -354,12 +292,15 @@ def atualizar_crianca(
     crianca.data_nascimento = dados.data_nascimento
     crianca.alergias = dados.alergias
     crianca.observacoes = dados.observacoes
+    crianca.plano = dados.plano
+    crianca.valor = dados.valor
     if dados.dia_vencimento is not None:
         crianca.dia_vencimento = dados.dia_vencimento
     if dados.autorizacao_imagem is not None:
         crianca.autorizacao_imagem = dados.autorizacao_imagem
-    crianca.tipo_cobranca = dados.tipo_cobranca
-
+    crianca.horas_contratadas = dados.horas_contratadas
+    crianca.tolerancia_minutos = dados.tolerancia_minutos
+    
     # Remove responsáveis antigos
     db.query(models.Responsavel)\
         .filter(models.Responsavel.crianca_id == crianca.id)\
@@ -468,7 +409,7 @@ def tempo_total_hoje(db: Session, empresa_id: int):
         if p.checkin.date() == hoje:
 
             # Se ainda não fez checkout, considera agora
-            checkout = p.checkout or datetime.utcnow()
+            checkout = p.checkout or datetime.now()
 
             minutos = int((checkout - p.checkin).total_seconds() / 60)
 
@@ -483,6 +424,31 @@ def tempo_total_hoje(db: Session, empresa_id: int):
 
     return list(resultado.values())
 
+def calcular_valor_extra(checkin, checkout, horas_contratadas, tolerancia_minutos=0):
+
+    if not checkout or not horas_contratadas:
+        return 0
+
+    #  diferença total em horas
+    diferenca = checkout - checkin
+    horas_total = diferenca.total_seconds() / 3600
+
+    #  aplica tolerância
+    tolerancia_horas = (tolerancia_minutos or 0) / 60
+
+    if horas_total <= (horas_contratadas + tolerancia_horas):
+        return 0
+
+    #  calcula horas extras
+    horas_extras = horas_total - horas_contratadas
+
+    #  valor por hora
+    valor_hora_extra = 5
+
+    valor_extra = horas_extras * valor_hora_extra
+
+    return round(valor_extra, 2)
+
 def criar_mensalidade(db: Session, dados: schemas.MensalidadeCreate, empresa_id: int):
     mensalidade = Mensalidade(
         crianca_id=dados.crianca_id,
@@ -496,76 +462,6 @@ def criar_mensalidade(db: Session, dados: schemas.MensalidadeCreate, empresa_id:
     db.refresh(mensalidade)
     return mensalidade
 
-def gerar_cobrancas_mensais(db):
-
-    hoje = date.today()
-
-    criancas = db.query(models.Crianca).all()
-
-    for c in criancas:
-
-        if c.tipo_cobranca not in ["mensal", "meio_periodo", "semanal"]:
-            continue
-
-        if not c.dia_vencimento:
-            continue
-
-        # data vencimento
-        # 🔥 pega o dia da criança
-        dia = c.dia_vencimento
-
-        # 🔥 pega último dia do mês (evita erro tipo fevereiro)
-        ultimo_dia = calendar.monthrange(hoje.year, hoje.month)[1]
-
-        if dia > ultimo_dia:
-            dia = ultimo_dia
-
-        data_vencimento = date(hoje.year, hoje.month, dia)
-
-        # 🔥 gera 10 dias antes
-        if hoje != data_vencimento - timedelta(days=10):
-            continue
-
-        mes = hoje.strftime("%m/%Y")
-
-        existe = db.query(models.Cobranca)\
-            .filter(
-                models.Cobranca.crianca_id == c.id,
-                models.Cobranca.mes == mes
-            )\
-            .first()
-
-        if existe:
-            continue
-
-        empresa = db.query(models.Empresa)\
-            .filter(models.Empresa.id == c.empresa_id)\
-            .first()
-
-        valor = 0
-
-        if c.tipo_cobranca == "mensal":
-            valor = empresa.valor_mensal_integral or 0
-
-        elif c.tipo_cobranca == "meio_periodo":
-            valor = empresa.valor_mensal_meio or 0
-
-        elif c.tipo_cobranca == "semanal":
-            valor = empresa.valor_semanal_integral or 0
-
-        nova = models.Cobranca(
-            crianca_id=c.id,
-            empresa_id=c.empresa_id,
-            valor=valor,
-            mes=mes,
-            pago=False,
-            data_vencimento=data_vencimento
-        )
-
-        db.add(nova)
-
-    db.commit()
-    
 def listar_mensalidades(db: Session, empresa_id: int):
     return db.query(Mensalidade)\
         .filter(Mensalidade.empresa_id == empresa_id)\

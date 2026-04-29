@@ -67,6 +67,10 @@ const linha=`
 
 <td>${acoes}</td>
 
+<td>${c.plano || "-"}</td>
+
+<td>R$ ${c.valor || 0}</td>
+
 </tr>
 `
 
@@ -112,9 +116,9 @@ function checkin(id){
             "Content-Type":"application/json",
             Authorization:"Bearer "+token
         },
-        body: JSON.stringify({
-            checkin: data && data !== "" ? data : null
-        })
+        body: data && data !== ""
+            ? JSON.stringify({ checkin: data })
+            : null
     })
     .then(async res => {
 
@@ -146,10 +150,11 @@ async function checkout(id, btn) {
                 "Content-Type": "application/json",
                 "Authorization": "Bearer " + localStorage.getItem("token")
             },
-            body: JSON.stringify({
-                checkout: null
-            })
+            body: data && data !== ""
+                ? JSON.stringify({ checkout: data })
+                : null
         });
+        
 
         const dados = await res.json();
 

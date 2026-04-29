@@ -13,12 +13,14 @@ headers:{ Authorization:"Bearer "+token }
 .then(res=>res.json())
 .then(dados=>{
 
+    console.log("CRIANCAS:", dados)
+
 const tbody=document.querySelector("#tabelaCriancas tbody")
 tbody.innerHTML=""
 
 dados.forEach(c=>{
 
-const resp=c.responsaveis?.[0] || {}
+const resp = (c.responsaveis && c.responsaveis.length > 0) ? c.responsaveis[0] : {}
 
 const botaoStatus = c.ativo
 ? `<button class="btn-desativar" onclick="desativar(${c.id})">Desativar</button>`
@@ -33,7 +35,6 @@ const linha=`
 <td>${resp.telefone || "-"}</td>
 <td>${c.alergias || "-"}</td>
 <td>${c.autorizacao_imagem ? "Sim":"Não"}</td>
-<td>${nomePlano(c.tipo_cobranca)}</td>
 
 
 <td>
@@ -46,19 +47,6 @@ ${botaoStatus}
 `
 
 tbody.innerHTML+=linha
-
-function nomePlano(tipo){
-    if(tipo === "hora") return "Hora"
-    if(tipo === "diaria") return "Diária"
-
-    if(tipo === "mensal") return "Mensal Integral"
-    if(tipo === "meio_periodo") return "Mensal Meio Período"
-
-    if(tipo === "semanal") return "Semanal Integral"
-    if(tipo === "semanal_meio") return "Semanal Meio Período"
-
-    return "-"
-}
 
 })
 
@@ -124,8 +112,13 @@ document.getElementById("nome").value = crianca.nome || ""
 document.getElementById("data_nascimento").value = crianca.data_nascimento || ""
 document.getElementById("alergias").value = crianca.alergias || ""
 document.getElementById("observacoes").value = crianca.observacoes || ""
-document.getElementById("tipo_cobranca").value = crianca.tipo_cobranca || "hora"
 document.getElementById("dia_vencimento").value = crianca.dia_vencimento || ""
+
+document.getElementById("plano").value = crianca.plano || ""
+document.getElementById("valor").value = crianca.valor || ""
+
+document.getElementById("horas_contratadas").value = crianca.horas_contratadas || ""
+document.getElementById("tolerancia_minutos").value = crianca.tolerancia_minutos || 0
 
 // ✅ LIMPA TODOS OS RADIOS (IMPORTANTE)
 document.querySelectorAll('input[name="autorizacao_imagem"]').forEach(r => r.checked = false)
@@ -243,7 +236,8 @@ const autorizacao_imagem = radioSelecionado
     ? radioSelecionado.value.toLowerCase() === "true"
     : false
 
-const tipo_cobranca = document.getElementById("tipo_cobranca").value
+const plano = document.getElementById("plano").value
+const valor = document.getElementById("valor").value
 
 // 🔥 RESPONSÁVEIS
 const responsaveis = []
@@ -276,10 +270,13 @@ nome,
 data_nascimento,
 alergias,
 observacoes,
-tipo_cobranca,
+plano,
+valor,
 dia_vencimento,
 autorizacao_imagem,
-responsaveis
+responsaveis,
+horas_contratadas: parseFloat(document.getElementById("horas_contratadas").value) || null,
+tolerancia_minutos: parseInt(document.getElementById("tolerancia_minutos").value) || 0
 }
 
 // 🔥 URL
@@ -333,8 +330,6 @@ console.error(err)
 alert("Erro ao salvar ❌")
 })
 
-}
-
 // 🔥 LOGOUT
 function logout(){
 localStorage.removeItem("token")
@@ -378,5 +373,8 @@ document.addEventListener("input", function(e){
    if(e.target.classList.contains("resp-cpf")){
     e.target.value = formatarCPF(e.target.value)
 }
+})}
 
+document.addEventListener("DOMContentLoaded", () => {
+    carregarCriancas()
 })

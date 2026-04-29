@@ -23,16 +23,7 @@ class ConfigEmpresa(BaseModel):
     banco_conta: str | None = None
     asaas_api_key: str | None = None
 
-    valor_hora: float | None = None
-    valor_diaria: float | None = None
-    valor_semanal_integral: float | None = None
-    valor_semanal_meio: float | None = None
-    valor_mensal_integral: float | None = None
-    valor_mensal_meio: float | None = None
-
     valor_sabado: float | None = None
-
-    tipo_cobranca: str | None = None
 
     
 class EmpresaPerfil(BaseModel):
@@ -92,18 +83,12 @@ class CriancaCreate(BaseModel):
     responsaveis: list[ResponsavelCreate] = []
     dia_vencimento: int | None = None
 
-    valor_hora: float | None = None
-    valor_diaria: float | None = None
-    valor_semanal_integral: float | None = None
-    valor_semanal_meio: float | None = None
-    valor_mensal_integral: float | None = None
-    valor_mensal_meio: float | None = None
+    plano: str | None = None
+    valor: float | None = None
+    horas_contratadas: float | None = None
+    tolerancia_minutos: int = 0
 
     valor_sabado: float | None = None
-
-    tipo_cobranca: str | None = None
-
-
 
 class CriancaResponse(BaseModel):
     id: int
@@ -112,13 +97,16 @@ class CriancaResponse(BaseModel):
     alergias: str | None
     observacoes: str | None
     autorizacao_imagem: bool | None 
-    tipo_cobranca: str | None   # 🔥 ADICIONA
-    dia_vencimento: int | None  # 🔥 ADICIONA
+    dia_vencimento: int | None
+
+    plano: str | None = None
+    valor: float | None = None
+    horas_contratadas: float | None = None
+    tolerancia_minutos: int = 0
     responsaveis: list[ResponsavelResponse]
 
     class Config:
         from_attributes = True
-
 
 # ==============================
 # USUÁRIO
@@ -228,19 +216,11 @@ class CobrancaResponse(BaseModel):
     telefone: str | None = None
     mes: str | None = None
 
-class Config:
-    from_attributes = True
+    class Config:
+        from_attributes = True
 
 class ConfiguracaoFinanceira(BaseModel):
-    valor_hora: float | None = None
-    valor_diaria: float | None = None
-    valor_semanal_integral: float | None = None
-    valor_semanal_meio: float | None = None
-    valor_mensal_integral: float | None = None
-    valor_mensal_meio: float | None = None
-
     valor_sabado: float | None = None
-    tipo_cobranca: str  # hora, diaria, mensal
     tipo_cobranca: str | None = None
 
 class FaturamentoCreate(BaseModel):

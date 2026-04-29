@@ -97,16 +97,16 @@ Nova criança
 
 <div class="form-group">
     <label>Plano da criança</label>
-    <select id="tipo_cobranca">
-    <option value="hora">Por Hora</option>
-    <option value="diaria">Diária</option>
+    <input type="text" id="plano" placeholder="Ex: Meio período">
 
-    <option value="mensal">Mensal Integral</option>
-    <option value="meio_periodo">Mensal Meio Período</option>
+    <label>Valor (R$)</label>
+    <input type="number" id="valor" placeholder="Ex: 300">
 
-    <option value="semanal">Semanal Integral</option>
-    <option value="semanal_meio">Semanal Meio Período</option>
-</select>
+    <label>Horas por dia</label>
+    <input type="number" id="horas_contratadas" step="0.5" placeholder="Ex: 4">
+
+    <label>Tolerância (minutos)</label>
+    <input type="number" id="tolerancia_minutos" placeholder="Ex: 10">
 </div>
 
 <div class="form-group">

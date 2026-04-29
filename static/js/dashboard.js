@@ -114,7 +114,7 @@ function renderLista(id, dados, tipo) {
 
     if (tipo === "presente" || tipo === "checkin") {
       horario = p.checkin
-        ? new Date(p.checkin + "Z").toLocaleTimeString('pt-BR', {
+        ? new Date(p.checkin).toLocaleTimeString('pt-BR', {
             hour: '2-digit',
             minute: '2-digit'
           })

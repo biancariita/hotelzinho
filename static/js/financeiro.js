@@ -319,7 +319,7 @@ async function verHistorico(id, nome){
 
     const res = await fetch(`/historico-crianca/${id}`,{
         headers:{
-            "Authorization":"Bearer "+token
+            "Authorization":"Bearer "+localStorage.getItem("token")
         }
     })
 
@@ -334,79 +334,65 @@ async function verHistorico(id, nome){
             
             <div class="linha-topo">
                 <span style="cursor:pointer;">📅 ${mes}</span>
-                <span class="valor">R$ ${Number(dados[mes].total).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</span>
+                <span class="valor">
+                    ${Number(dados[mes].total).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}
+                </span>
             </div>
 
             <div class="detalhes" style="display:none;">
         `
 
-        dados[mes].pagamentos.forEach(p=>{
-
-            const data = p.data ? formatarDataInteligente(p.data) : "Sem data"
-            const status = p.pago ? "🟢 Pago" : "🔴 Pendente"
-
-            let detalhesHtml = ""
-
-            if(p.detalhes && p.detalhes.length){
-
-                p.detalhes.forEach(d=>{
-
-                    let nomeDetalhe = ""
-
-                    if(d.tipo === "sabado") nomeDetalhe = "Sábado"
-                    if(d.tipo === "hora") nomeDetalhe = "Hora extra"
-                    if(d.tipo === "diaria") nomeDetalhe = "Diária"
-
-                    detalhesHtml += `
-                    <div style="font-size:12px; color:#666;">
-                        • ${nomeDetalhe}: ${Number(d.valor).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}
-                    </div>
-                    `
-                })
-            }
-            // 🔵 PRESENÇAS
-            if (dados[mes].presencas && dados[mes].presencas.length){
-
-                html += `<div style="margin-top:10px; font-size:13px; color:#555;">`
-
-                dados[mes].presencas.forEach(p=>{
-
-                    const data = new Date(p.data).toLocaleDateString("pt-BR")
-
-                    html += `
-                    <div style="margin-bottom:5px;">
-                        📅 ${data} • ⏱ ${p.horas}h
-                    </div>
-                    `
-                })
-
-                html += `</div>`
-            }
-
-            html += `
-            <div class="linha" style="display:flex; justify-content:space-between; align-items:center;">
-                
-                <div>
-                    💰 ${Number(p.valor).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}
-                    ${detalhesHtml}
-                    <br>
-                    <small>${data} • ${status}</small>
-                </div>
-
-                ${p.pago ? `
-                <button onclick="baixarComprovante(${p.id})">📄</button>
-                ` : ""}
-
-            </div>
-            `
-        })
-
-        // 🔥 FECHA A DIV DO MÊS (FALTAVA ISSO!)
+        // 🔥 MENSALIDADE
         html += `
-            </div>
+        <div style="margin-bottom:10px; font-weight:600;">
+            💰 Mensalidade incluída
         </div>
         `
-    }
+
+        // 🔥 EXTRAS
+        if (dados[mes].extras && dados[mes].extras.length){
+
+            dados[mes].extras.forEach(e => {
+
+                // 🔥 FORMATA DATA
+                let dataFormatada = "-"
+                if(e.data){
+                    const d = new Date(e.data)
+                    dataFormatada = d.toLocaleDateString("pt-BR")
+                }
+
+                // 🔥 CALCULA TEMPO (horas → HH:MM)
+                let tempo = "-"
+                if(e.valor){
+                    const horas = e.valor / 5 // R$5 por hora
+                    const h = Math.floor(horas)
+                    const m = Math.round((horas - h) * 60)
+                    tempo = `${h}:${m.toString().padStart(2,"0")}`
+                }
+
+                html += `
+                <div style="margin-bottom:12px; font-size:14px; line-height:1.5;">
+                    
+                    <div>📅 ${dataFormatada}</div>
+
+                    <div>⏱ <strong>TEMPO</strong> - ${tempo}</div>
+
+                    <div>💰 <strong>VALOR EXTRA:</strong> 
+                        ${Number(e.valor).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}
+                    </div>
+
+                </div>
+                `
+            })
+
+        } else {
+
+            html += `
+            <div style="color:#777; font-size:13px;">
+                Nenhuma hora extra
+            </div>
+            `
+        }}
 
     document.getElementById("conteudoHistorico").innerHTML = html
     document.getElementById("modalHistorico").style.display = "block"
@@ -641,7 +627,6 @@ async function abrirHistorico(tipo) {
 }
 
 
-
 function desconto(id){
 
 let valor = document.getElementById(`valor-${id}`).value
@@ -742,4 +727,3 @@ ${pix}`
 
     window.open(`https://wa.me/55${tel}?text=${encodeURIComponent(msg)}`)
 }
-

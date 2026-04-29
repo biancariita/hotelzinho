@@ -39,6 +39,8 @@ from app.models import Usuario
 from fastapi import Body
 from app.models import Usuario, Empresa
 from app.security import gerar_hash_senha
+from sqlalchemy import func
+
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -90,7 +92,10 @@ def listar_criancas(
             "autorizacao_imagem": c.autorizacao_imagem,
             "dia_vencimento": c.dia_vencimento,
             "ativo": c.ativo,
-            "tipo_cobranca": c.tipo_cobranca,
+            "valor": c.valor,
+            "plano": c.plano,
+            "horas_contratadas": c.horas_contratadas,
+            "tolerancia_minutos": c.tolerancia_minutos,
             "responsaveis": responsaveis
         })
 
@@ -197,6 +202,51 @@ def nova_senha(data: dict = Body(...), db: Session = Depends(get_db)):
 
     return {"msg": "Senha alterada com sucesso"}
 
+@app.get("/checkin-hoje")
+def listar_checkin_hoje(db: Session = Depends(get_db), usuario = Depends(get_usuario_atual)):
+    hoje = datetime.now().date()
+
+    presencas = db.query(models.Presenca)\
+        .filter(
+            models.Presenca.empresa_id == usuario.empresa_id,
+            func.date(models.Presenca.checkin) == hoje
+        ).all()
+
+    return [
+        {
+            "nome": p.crianca.nome if p.crianca else "Sem nome",
+            "hora": formatar_hora_br(p.checkin) if p.checkin else ""
+        }
+        for p in presencas
+    ]
+
+
+@app.get("/checkout-hoje")
+def listar_checkout_hoje(db: Session = Depends(get_db), usuario = Depends(get_usuario_atual)):
+    hoje = datetime.now().date()
+
+    presencas = db.query(models.Presenca)\
+        .filter(
+            models.Presenca.empresa_id == usuario.empresa_id,
+            models.Presenca.checkout != None,
+            func.date(models.Presenca.checkout) == hoje
+        ).all()
+
+    return [
+        {
+            "nome": p.crianca.nome if p.crianca else "Sem nome",
+            "hora": formatar_hora_br(p.checkout) if p.checkout else ""
+        }
+        for p in presencas
+    ]
+
+def formatar_hora_br(data):
+    if not data:
+        return ""
+
+    # 🔥 força horário Brasil
+    return (data - timedelta(hours=3)).strftime("%H:%M")
+
 @app.post("/checkin/{crianca_id}")
 def checkin(
     crianca_id: int,
@@ -248,7 +298,6 @@ def checkin(
         print("ERRO CHECKIN:", e)
         raise HTTPException(status_code=400, detail=str(e))
 
-
 @app.put("/checkout/{crianca_id}")
 def checkout(
     crianca_id: int,
@@ -260,31 +309,19 @@ def checkout(
     presenca_id = dados.get("presenca_id")
     data_checkout = dados.get("checkout")
 
-    # 🔥 1. EDITAR PRESENÇA ESPECÍFICA
     if presenca_id:
-
         presenca = db.query(Presenca).filter(
             Presenca.id == presenca_id,
             Presenca.empresa_id == usuario.empresa_id
         ).first()
 
-        if not presenca:
-            raise HTTPException(status_code=404, detail="Presença não encontrada")
-
-    # 🔥 2. CHECKOUT MANUAL SEM ID → PEGA ÚLTIMA PRESENÇA
     elif data_checkout and data_checkout != "null":
-
         presenca = db.query(Presenca).filter(
             Presenca.crianca_id == crianca_id,
             Presenca.empresa_id == usuario.empresa_id
         ).order_by(Presenca.checkin.desc()).first()
 
-        if not presenca:
-            raise HTTPException(status_code=404, detail="Nenhuma presença encontrada")
-
-    # 🔥 3. CHECKOUT NORMAL
     else:
-
         presenca = db.query(Presenca)\
             .filter(
                 Presenca.crianca_id == crianca_id,
@@ -293,67 +330,18 @@ def checkout(
             )\
             .first()
 
-        if not presenca:
-            raise HTTPException(status_code=404, detail="Não está em check-in")
+    if not presenca:
+        raise HTTPException(status_code=404, detail="Presença não encontrada")
 
-    # 🔥 APLICA CHECKOUT
+    # 🔥 MANUAL
     if data_checkout and data_checkout != "null":
         presenca.checkout = datetime.fromisoformat(data_checkout)
         db.commit()
         db.refresh(presenca)
+
+    # 🔥 AUTOMÁTICO (USA CRUD)
     else:
         presenca = crud.fazer_checkout(db, presenca.id)
-
-    # 🔥 BUSCA CRIANÇA
-    crianca = db.query(Crianca).filter(
-        Crianca.id == crianca_id,
-        Crianca.empresa_id == usuario.empresa_id
-    ).first()
-
-    # 🔥 VERIFICA COBRANÇA EM ABERTO
-    cobranca_aberta = db.query(Cobranca).filter(
-        Cobranca.crianca_id == crianca_id,
-        Cobranca.empresa_id == usuario.empresa_id,
-        Cobranca.pago == False
-    ).first()
-
-    # 🔥 GARANTE VENCIMENTO
-    if cobranca_aberta and not cobranca_aberta.data_vencimento:
-
-        hoje = date.today()
-
-        dia = crianca.dia_vencimento or 10
-        ultimo_dia = calendar.monthrange(hoje.year, hoje.month)[1]
-
-        if dia > ultimo_dia:
-            dia = ultimo_dia
-
-        cobranca_aberta.data_vencimento = date(hoje.year, hoje.month, dia)
-
-        db.commit()
-
-    # 🔥 CRIA NOVA COBRANÇA SE NÃO EXISTIR
-    if not cobranca_aberta:
-
-        hoje = date.today()
-
-        dia = crianca.dia_vencimento or 10
-        ultimo_dia = calendar.monthrange(hoje.year, hoje.month)[1]
-
-        if dia > ultimo_dia:
-            dia = ultimo_dia
-
-        nova = Cobranca(
-            crianca_id=crianca.id,
-            empresa_id=crianca.empresa_id,
-            valor=0,
-            mes=hoje.strftime("%m/%Y"),
-            pago=False,
-            data_vencimento=date(hoje.year, hoje.month, dia)
-        )
-
-        db.add(nova)
-        db.commit()
 
     return presenca
 
@@ -379,7 +367,7 @@ def criar_presenca_manual(
         if checkout < checkin:
             raise HTTPException(status_code=400, detail="Checkout menor que checkin")
 
-    # 🔥 NOVO: EVITA DUPLICIDADE (MESMO DIA)
+    # 🔥 evita duplicidade no mesmo dia
     inicio_dia = checkin.replace(hour=0, minute=0, second=0, microsecond=0)
     fim_dia = inicio_dia + timedelta(days=1)
 
@@ -407,7 +395,54 @@ def criar_presenca_manual(
     db.commit()
     db.refresh(nova)
 
-    return nova
+    # 🔥 AQUI ESTÁ A CORREÇÃO PRINCIPAL
+   # 🔥 CALCULO EXTRA
+    if checkout:
+
+        horas = (checkout - checkin).total_seconds() / 3600
+        horas = max(horas, 0)
+
+        crianca = db.query(Crianca).filter(Crianca.id == crianca_id).first()
+
+        horas_contratadas = crianca.horas_contratadas or 0
+
+        if horas > horas_contratadas:
+
+            horas_extra = horas - horas_contratadas
+            valor_extra = horas_extra * 5
+
+            mes = checkin.strftime("%m/%Y")
+
+            # 🔥 BUSCA COBRANÇA
+            cobranca = db.query(Cobranca).filter(
+                Cobranca.crianca_id == crianca_id,
+                Cobranca.mes == mes
+            ).first()
+
+            # 🔥 SE NÃO EXISTIR → CRIA COM MENSALIDADE
+            if not cobranca:
+                cobranca = Cobranca(
+                    crianca_id=crianca_id,
+                    empresa_id=usuario.empresa_id,
+                    mes=mes,
+                    valor=crianca.valor or 0  # 🔥 mensalidade
+                )
+                db.add(cobranca)
+                db.flush()
+
+            # 🔥 SOMA EXTRA
+            cobranca.valor += valor_extra
+
+            # 🔥 SALVA ITEM
+            item = models.CobrancaItem(
+                cobranca_id=cobranca.id,
+                descricao=f"Hora extra - {checkin.strftime('%d/%m')}",
+                valor=valor_extra,
+                data=checkin  # 🔥 AQUI ESTÁ A CORREÇÃO
+            )
+
+            db.add(item)
+            db.commit()
 
 def adicionar_detalhe(cobranca, tipo, valor):
 
@@ -423,12 +458,30 @@ def adicionar_detalhe(cobranca, tipo, valor):
 
     cobranca.detalhes = json.dumps(detalhes)
 
-@app.get("/presentes", response_model=list[schemas.PresencaResponse])
-def presentes(
+@app.get("/presentes")
+def listar_presentes(
     db: Session = Depends(get_db),
     usuario = Depends(get_usuario_atual)
 ):
-    return crud.listar_presentes(db, usuario.empresa_id)
+
+    presencas = db.query(models.Presenca)\
+        .filter(
+            models.Presenca.checkout == None,
+            models.Presenca.empresa_id == usuario.empresa_id
+        )\
+        .all()
+
+    return [
+        {
+            "id": p.id,
+            "checkin": p.checkin,
+            "crianca": {
+                "id": p.crianca.id if p.crianca else None,
+                "nome": p.crianca.nome if p.crianca else "Sem nome"
+            }
+        }
+        for p in presencas
+    ]
 
 @app.get("/relatorio-hoje", response_model=list[schemas.PresencaResponse])
 def relatorio(
@@ -601,6 +654,22 @@ def atualizar_valor_cobranca(
     db.commit()
 
     return {"msg": "Valor atualizado"}
+
+@app.get("/cobranca/{id}")
+def ver_cobranca(id: int, db: Session = Depends(get_db)):
+
+    cobranca = db.query(models.Cobranca).filter(models.Cobranca.id == id).first()
+
+    return {
+        "total": cobranca.valor,
+        "itens": [
+            {
+                "descricao": i.descricao,
+                "valor": i.valor
+            }
+            for i in cobranca.itens
+        ]
+    }
 
 @app.put("/cobrancas/{cobranca_id}/pagar", response_model=schemas.CobrancaResponse)
 def pagar_cobranca(
@@ -910,26 +979,6 @@ def gerar_qrcode_pix(
 
     return StreamingResponse(buffer, media_type="image/png")
 
-@app.put("/empresa/configuracao-financeira")
-def configurar_financeiro(
-    dados: schemas.ConfiguracaoFinanceira,
-    db: Session = Depends(get_db),
-    usuario = Depends(get_usuario_atual)
-):
-    empresa = db.query(models.Empresa)\
-        .filter(models.Empresa.id == usuario.empresa_id)\
-        .first()
-
-    empresa.valor_hora = dados.valor_hora
-    empresa.valor_diaria = dados.valor_diaria
-    empresa.valor_mensal = dados.valor_mensal
-    empresa.tipo_cobranca = dados.tipo_cobranca
-    empresa.valor_semanal = dados.valor_semanal
-    empresa.valor_meio_periodo = dados.valor_meio_periodo
-    db.commit()
-
-    return {"message": "Configuração salva com sucesso"}
-
 def verificar_permissao_financeiro(usuario):
     if usuario.role not in ["admin", "financeiro"]:
         raise HTTPException(
@@ -1042,29 +1091,9 @@ def atualizar_configuracoes(
         empresa.endereco = dados.endereco
 
     # FINANCEIRO (só atualiza se vier)
-    if dados.valor_hora is not None:
-        empresa.valor_hora = dados.valor_hora
-
-    if dados.valor_diaria is not None:
-        empresa.valor_diaria = dados.valor_diaria
-
-    if dados.valor_semanal_integral is not None:
-        empresa.valor_semanal_integral = dados.valor_semanal_integral
-
-    if dados.valor_semanal_meio is not None:
-        empresa.valor_semanal_meio = dados.valor_semanal_meio
-
-    if dados.valor_mensal_integral is not None:
-        empresa.valor_mensal_integral = dados.valor_mensal_integral
-
-    if dados.valor_mensal_meio is not None:
-        empresa.valor_mensal_meio = dados.valor_mensal_meio
 
     if dados.valor_sabado is not None:
         empresa.valor_sabado = dados.valor_sabado
-
-    if dados.tipo_cobranca is not None:
-        empresa.tipo_cobranca = dados.tipo_cobranca
 
     if dados.pix_chave is not None :
         empresa.pix_chave = dados.pix_chave
@@ -1103,14 +1132,8 @@ def obter_configuracoes(
         "email": empresa.email,
         "endereco": empresa.endereco,
 
-        "valor_hora": empresa.valor_hora,
-        "valor_diaria": empresa.valor_diaria,
-        "valor_semanal_integral": empresa.valor_semanal_integral,
-        "valor_semanal_meio": empresa.valor_semanal_meio,
-        "valor_mensal_integral": empresa.valor_mensal_integral,
-        "valor_mensal_meio": empresa.valor_mensal_meio,
+        
         "valor_sabado": empresa.valor_sabado,
-        "tipo_cobranca": empresa.tipo_cobranca,
 
         "pix_chave": empresa.pix_chave,
         "banco_nome": empresa.banco_nome,
@@ -1448,12 +1471,14 @@ def historico_crianca(
     usuario = Depends(get_usuario_atual)
 ):
 
-    # 🔥 AGORA TRAZ TODAS (PAGAS E PENDENTES)
+    from sqlalchemy.orm import joinedload
+
     cobrancas = db.query(models.Cobranca)\
+        .options(joinedload(models.Cobranca.itens))\
         .filter(
-            models.Cobranca.crianca_id == crianca_id
-        )\
-        .all()
+            models.Cobranca.crianca_id == crianca_id,
+            models.Cobranca.empresa_id == usuario.empresa_id
+        ).all()
 
     presencas = db.query(models.Presenca)\
         .filter(models.Presenca.crianca_id == crianca_id)\
@@ -1461,32 +1486,37 @@ def historico_crianca(
 
     resultado = {}
 
-    # 🔥 COBRANÇAS (PAGAS E PENDENTES)
+    # 🔥 COBRANÇAS (AGORA CORRETO)
     for c in cobrancas:
 
-        # 🔥 define data base
-        data_base = c.data_pagamento if c.data_pagamento else c.data_vencimento
+        mes = c.mes
 
-        if not data_base:
+        if not mes:
             continue
-
-        mes = data_base.strftime("%m/%Y")
 
         if mes not in resultado:
             resultado[mes] = {
                 "total": 0,
                 "pagamentos": [],
-                "presencas": []
+                "presencas": [],
+                "extras": []
             }
 
         resultado[mes]["total"] += c.valor or 0
 
+        # 🔥 PEGA HORAS EXTRAS
+        for i in c.itens:
+            if i.descricao and "Hora extra" in i.descricao:
+                resultado[mes]["extras"].append({
+                    "descricao": i.descricao,
+                    "valor": i.valor,
+                    "data": i.data
+                })
+
         resultado[mes]["pagamentos"].append({
             "id": c.id,
             "valor": c.valor,
-            "data": data_base,
-            "pago": c.pago,
-            "detalhes": json.loads(c.detalhes) if c.detalhes else []
+            "pago": c.pago
         })
 
     # 🔥 PRESENÇAS
@@ -1501,14 +1531,14 @@ def historico_crianca(
             resultado[mes] = {
                 "total": 0,
                 "pagamentos": [],
-                "presencas": []
+                "presencas": [],
+                "extras": []
             }
 
         horas = 0
 
         if p.checkout:
             horas = (p.checkout - p.checkin).total_seconds() / 3600
-
             if horas < 0:
                 horas = 0
 
@@ -1529,29 +1559,6 @@ def calcular_valor(c, empresa, checkin, checkout):
     if dia_semana == 5:
         return empresa.valor_sabado or 0
 
-    # 📦 TIPO DE COBRANÇA DA CRIANÇA
-    tipo = c.tipo_cobranca  # hora / semanal / mensal
-    periodo = getattr(c, "periodo", "integral")
-
-    # ⏱ HORA
-    if tipo == "hora":
-        return (empresa.valor_hora or 0) * horas
-
-    # 📅 SEMANAL
-    if tipo == "semanal":
-        if periodo == "meio":
-            return empresa.valor_semanal_meio or 0
-        return empresa.valor_semanal_integral or 0
-
-    # 📆 MENSAL
-    if tipo == "mensal":
-        if periodo == "meio":
-            return empresa.valor_mensal_meio or 0
-        return empresa.valor_mensal_integral or 0
-
-    # fallback
-    return empresa.valor_diaria or 0
-
 @app.put("/presencas/{presenca_id}")
 def editar_presenca(
     presenca_id: int,
@@ -1568,13 +1575,13 @@ def editar_presenca(
     if not presenca:
         raise HTTPException(status_code=404, detail="Presença não encontrada")
 
-   # 🔥 CHECKIN
+    # 🔥 CHECKIN
     if "checkin" in dados and dados["checkin"]:
         presenca.checkin = datetime.fromisoformat(dados["checkin"])
 
-    # 🔥 CHECKOUT
-    if "checkout" in dados:
-        presenca.checkout = datetime.now()
+    # 🔥 CHECKOUT (CORRIGIDO)
+    if "checkout" in dados and dados["checkout"]:
+        presenca.checkout = datetime.fromisoformat(dados["checkout"])
 
     db.commit()
     db.refresh(presenca)
@@ -1809,3 +1816,5 @@ def aniversarios_proximos(db: Session = Depends(get_db)):
             })
 
     return resultado
+
+print(datetime.now())

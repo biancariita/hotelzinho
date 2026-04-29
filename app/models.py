@@ -32,37 +32,28 @@ class Empresa(Base):
     banco_agencia = Column(String, nullable=True)
     banco_conta = Column(String, nullable=True)
 
-    valor_hora = Column(Float, nullable=True)
-    valor_diaria = Column(Float, nullable=True)
-
-    valor_semanal_integral = Column(Float, nullable=True)
-    valor_semanal_meio = Column(Float, nullable=True)
-
-    valor_mensal_integral = Column(Float, nullable=True)
-    valor_mensal_meio = Column(Float, nullable=True)
-
     valor_sabado = Column(Float, nullable=True)
-    
-    tipo_cobranca = Column(String, default="hora")
 
 class Crianca(Base):
     __tablename__ = "criancas"
 
     id = Column(Integer, primary_key=True, index=True)
     nome = Column(String, nullable=False)
+
+    valor = Column(Float, nullable=True)
+    plano = Column(String, nullable=True)
+    horas_contratadas = Column(Float, nullable=True)
+    tolerancia_minutos = Column(Integer, default=0)
+    dia_vencimento = Column(Integer, nullable=True)
     data_nascimento = Column(Date)
     alergias = Column(String)
     observacoes = Column(String)
     autorizacao_imagem = Column(Boolean, default=False)
-    dia_vencimento = Column(Integer, nullable=True)
 
     empresa_id = Column(Integer, ForeignKey("empresas.id"))
     ativo = Column(Boolean, default=True)
     
-    asaas_customer_id = Column(String, nullable=True)
-
-    tipo_cobranca = Column(String, default="hora")
-    
+    asaas_customer_id = Column(String, nullable=True)    
 
     responsaveis = relationship(
         "Responsavel",
@@ -131,7 +122,8 @@ class Cobranca(Base):
     minutos = Column(Integer, nullable=True)
     tipo = Column(String)  # "hora" ou "mensal"
     pago = Column(Boolean, default=False)
-
+    itens = relationship("CobrancaItem", back_populates="cobranca")
+    
     data_vencimento = Column(Date, nullable=True)
     data_pagamento = Column(DateTime, nullable=True)
 
@@ -148,6 +140,18 @@ class Cobranca(Base):
     crianca = relationship("Crianca")
     motivo_desconto = Column(String, nullable=True)
     valor_original = Column(Float, nullable=True)
+
+class CobrancaItem(Base):
+    __tablename__ = "cobranca_itens"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    cobranca_id = Column(Integer, ForeignKey("cobrancas.id"))
+    descricao = Column(String)
+    valor = Column(Float)
+    data = Column(DateTime, default=datetime.now)
+
+    cobranca = relationship("Cobranca", back_populates="itens")
 
 class Responsavel(Base):
     __tablename__ = "responsaveis"
