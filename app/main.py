@@ -298,7 +298,11 @@ def checkin(
                     detail="Criança já está presente ou já fez check-in hoje"
                 )
 
-            return presenca
+            return {
+                "id": presenca.id,
+                "checkin": presenca.checkin.isoformat() if presenca.checkin else None,
+                "checkout": presenca.checkout.isoformat() if presenca.checkout else None
+            }
 
         # 🟢 CHECK-IN MANUAL
         else:
@@ -317,7 +321,11 @@ def checkin(
                     detail="Já existe check-in aberto para essa criança"
                 )
 
-            return presenca
+            return {
+                "id": presenca.id,
+                "checkin": presenca.checkin.isoformat() if presenca.checkin else None,
+                "checkout": presenca.checkout.isoformat() if presenca.checkout else None
+            }
 
     except Exception as e:
         print("ERRO CHECKIN:", e)
@@ -368,7 +376,11 @@ def checkout(
     else:
         presenca = crud.fazer_checkout(db, presenca.id)
 
-    return presenca
+    return {
+        "id": presenca.id,
+        "checkin": presenca.checkin.isoformat() if presenca.checkin else None,
+        "checkout": presenca.checkout.isoformat() if presenca.checkout else None
+    }
 
 @app.post("/presenca-manual")
 def criar_presenca_manual(
@@ -499,7 +511,8 @@ def listar_presentes(
     return [
         {
             "id": p.id,
-            "checkin": p.checkin,
+            "checkin": p.checkin.isoformat() if p.checkin else None,
+            "checkout": p.checkout.isoformat() if p.checkout else None,
             "crianca": {
                 "id": p.crianca.id if p.crianca else None,
                 "nome": p.crianca.nome if p.crianca else "Sem nome"
@@ -1340,7 +1353,13 @@ def dados_ficha_crianca(
         ]
     },
 
-    "presencas": presencas,
+    "presencas": [
+        {
+            "checkin": p.checkin.isoformat() if p.checkin else None,
+            "checkout": p.checkout.isoformat() if p.checkout else None
+        }
+        for p in presencas
+    ],
     "cobrancas": cobrancas
 
     }
@@ -1535,7 +1554,7 @@ def historico_crianca(
                 resultado[mes]["extras"].append({
                     "descricao": i.descricao,
                     "valor": i.valor,
-                    "data": i.data
+                    "data": i.data.isoformat() if i.data else None
                 })
 
         resultado[mes]["pagamentos"].append({
@@ -1568,7 +1587,7 @@ def historico_crianca(
                 horas = 0
 
         resultado[mes]["presencas"].append({
-            "data": p.checkin,
+            "data": p.checkin.isoformat() if p.checkin else None,
             "horas": round(horas, 2)
         })
 
@@ -1855,4 +1874,8 @@ def editar_presenca(
     db.commit()
     db.refresh(presenca)
 
-    return presenca
+    return {
+    "id": presenca.id,
+    "checkin": presenca.checkin.isoformat() if presenca.checkin else None,
+    "checkout": presenca.checkout.isoformat() if presenca.checkout else None
+}

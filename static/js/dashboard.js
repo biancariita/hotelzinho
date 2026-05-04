@@ -146,7 +146,8 @@ function renderLista(id, dados, tipo) {
 
       <span class="horario ${tipo} hora-editavel"
             data-id="${p.id}"
-            data-tipo="${tipo === 'saiu' ? 'checkout' : 'checkin'}">
+            data-tipo="${tipo === 'saiu' ? 'checkout' : 'checkin'}"
+            data-data="${p.checkin ? p.checkin.split('T')[0] : ''}">
         ${horario}
       </span>
     `;
@@ -292,57 +293,69 @@ document.addEventListener("click", function(e){
 
         async function salvar(){
 
-            const novoValor = input.value
+          const novoValor = input.value
 
-            const now = new Date()
-            const hoje =
-              now.getFullYear() + "-" +
-              String(now.getMonth()+1).padStart(2,"0") + "-" +
-              String(now.getDate()).padStart(2,"0")
+          if(!novoValor){
+              alert("Digite um horário")
+              return
+          }
 
-            let body = {}
-           
-            if(tipo === "checkin"){
-                body.checkin = `${hoje}T${novoValor}:00`
-            } else {
-                body.checkout = `${hoje}T${novoValor}:00`
-            }
-            
-            const res = await fetch(`/presencas/${presencaId}`,{
-                method:"PUT",
-                headers:{
-                    "Content-Type":"application/json",
-                    Authorization:"Bearer "+localStorage.getItem("token")
-                },
-                body: JSON.stringify(body)
-            })
-            
-            let dados = {}
+          // 🔥 PEGA DATA DO BACKEND (não do computador)
+          const dataBase = span.dataset.data || p?.checkin?.split("T")[0]
 
-            try {
-                dados = await res.json()
-            } catch {
-                dados = { detail: "Erro interno" }
-            }
+          const hoje = dataBase || new Date().toISOString().split("T")[0]
 
-            if(!res.ok){
-                alert(dados.detail || "Erro ao salvar")
-                editando = false
-                return
-            }
+          let body = {}
 
-            const novoSpan = document.createElement("span")
-            novoSpan.className = "hora-editavel"
-            novoSpan.dataset.id = presencaId
-            novoSpan.dataset.tipo = tipo
-            novoSpan.innerText = novoValor
+          if(tipo === "checkin"){
+              body.checkin = `${hoje}T${novoValor}:00`
+          } else {
+              body.checkout = `${hoje}T${novoValor}:00`
+          }
 
-            input.replaceWith(novoSpan)
+          const res = await fetch(`/presencas/${presencaId}`,{
+              method:"PUT",
+              headers:{
+                  "Content-Type":"application/json",
+                  Authorization:"Bearer "+localStorage.getItem("token")
+              },
+              body: JSON.stringify(body)
+          })
 
-            editando = false // 🔥 termina edição
+          let dados = {}
 
-            carregarListasDashboard()
-        }
+          try {
+              dados = await res.json()
+          } catch {
+              dados = { detail: "Erro interno" }
+          }
+
+          if(!res.ok){
+              alert(dados.detail || "Erro ao salvar")
+              editando = false
+              return
+          }
+
+          // 🔥 USA O RETORNO DO BACKEND (garante horário correto)
+          const dataAtualizada = tipo === "checkin" ? dados.checkin : dados.checkout
+
+          const novoSpan = document.createElement("span")
+          novoSpan.className = "horario hora-editavel"
+          novoSpan.dataset.id = presencaId
+          novoSpan.dataset.tipo = tipo
+
+          novoSpan.innerText = new Date(dataAtualizada).toLocaleTimeString('pt-BR', {
+              timeZone: 'America/Sao_Paulo',
+              hour: '2-digit',
+              minute: '2-digit'
+          })
+
+          input.replaceWith(novoSpan)
+
+          editando = false
+
+          carregarListasDashboard()
+      }
     }
 })
 

@@ -190,10 +190,22 @@ def fechar_presencas_antigas(db):
 
 
 def listar_presentes(db: Session, empresa_id: int):
-    return db.query(Presenca)\
+    presencas = db.query(Presenca)\
     .filter(Presenca.empresa_id == empresa_id)\
     .filter(Presenca.checkout == None)\
     .all()
+
+    return [
+        {
+            "id": p.id,
+            "checkin": p.checkin.isoformat() if p.checkin else None,
+            "crianca": {
+                "id": p.crianca.id if p.crianca else None,
+                "nome": p.crianca.nome if p.crianca else "Sem nome"
+            }
+        }
+        for p in presencas
+    ]
 
 def autenticar_usuario(db: Session, email: str, senha: str):
 
@@ -358,7 +370,15 @@ def relatorio_hoje(db: Session, empresa_id: int):
 
     for p in presencas:
         if p.checkin.date() == hoje:
-            resultado.append(p)
+            resultado.append({
+                "id": p.id,
+                "checkin": p.checkin.isoformat() if p.checkin else None,
+                "checkout": p.checkout.isoformat() if p.checkout else None,
+                "crianca": {
+                    "id": p.crianca.id if p.crianca else None,
+                    "nome": p.crianca.nome if p.crianca else "Sem nome"
+                }
+            })
 
     return resultado
 
@@ -637,8 +657,8 @@ def listar_cobrancas(db, empresa_id):
             "crianca_nome": c.crianca.nome if c.crianca else "",
             "valor": c.valor,
             "pago": c.pago,
-            "data_pagamento": c.data_pagamento,
-            "data_vencimento": c.data_vencimento,
+            "data_pagamento": c.data_pagamento.isoformat() if c.data_pagamento else None,
+            "data_vencimento": c.data_vencimento.isoformat() if c.data_vencimento else None,
             "telefone": c.crianca.responsaveis[0].telefone if c.crianca and c.crianca.responsaveis else "",
             "mes": c.mes
         })
