@@ -521,7 +521,7 @@ def listar_presentes(
         for p in presencas
     ]
 
-@app.get("/relatorio-hoje", response_model=list[schemas.PresencaResponse])
+@app.get("/relatorio-hoje", response_model=list[schemas.PresencaSimples])
 def relatorio(
     db: Session = Depends(get_db),
     usuario = Depends(get_usuario_atual)

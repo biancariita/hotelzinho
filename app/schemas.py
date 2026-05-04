@@ -74,6 +74,17 @@ class ResponsavelResponse(BaseModel):
 # CRIANÇA
 # ==============================
 
+
+class CriancaSimples(BaseModel):
+    id: int
+    nome: str
+
+class PresencaSimples(BaseModel):
+    id: int
+    crianca: CriancaSimples
+    checkin: str | None
+    checkout: str | None
+
 class CriancaCreate(BaseModel):
     nome: str
     data_nascimento: date | None = None
