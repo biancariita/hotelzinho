@@ -123,7 +123,10 @@ function renderLista(id, dados, tipo) {
 
     if (tipo === "saiu") {
       horario = p.checkout
-        ? new Date(p.checkout).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+        ? new Date(p.checkout).toLocaleTimeString('pt-BR', {
+            hour: '2-digit',
+            minute: '2-digit'
+          })
         : "";
     }
 
@@ -138,7 +141,12 @@ function renderLista(id, dados, tipo) {
           <div class="status">${tipo}</div>
         </div>
       </div>
-      <div class="horario ${tipo}">${horario}</div>
+
+      <span class="horario ${tipo} hora-editavel"
+            data-id="${p.id}"
+            data-tipo="${tipo === 'saiu' ? 'checkout' : 'checkin'}">
+        ${horario}
+      </span>
     `;
 
     lista.appendChild(div);
@@ -148,8 +156,11 @@ function renderLista(id, dados, tipo) {
   carregarListasDashboard();
 
   setInterval(() => {
+  if(!editando){
     carregarListasDashboard();
-  }, 5000);
+  }
+}, 5000);
+
 window.fecharModal = function () {
   const modal = document.getElementById("modal");
 
@@ -232,12 +243,106 @@ async function atualizarDashboard() {
         }
     });
 
-    const dados = await res.json();
+    let dados = null
+
+    try {
+        dados = await res.json()
+    } catch {
+        dados = { detail: "Erro interno no servidor" }
+    }
+
+    if(!res.ok){
+        alert(dados.detail || "Erro ao salvar")
+        return
+    };
 
     document.getElementById("presentesAgora").innerText = dados.presentes_agora;
     document.getElementById("totalHoje").innerText = dados.total_hoje;
     document.getElementById("jaSairam").innerText = dados.ja_sairam;
 }
+
+document.addEventListener("click", function(e){
+
+    if(e.target.classList.contains("hora-editavel")){
+
+        editando = true // 🔥 começa edição
+
+        const span = e.target
+        const valorAtual = span.innerText
+        const presencaId = span.dataset.id
+        const tipo = span.dataset.tipo
+
+        const input = document.createElement("input")
+        input.type = "time"
+        input.value = valorAtual.substring(0,5)
+
+        span.replaceWith(input)
+        input.focus()
+
+        // ❌ REMOVE blur (isso tava fechando sozinho)
+        // input.addEventListener("blur", salvar)
+
+        input.addEventListener("keydown", function(ev){
+            if(ev.key === "Enter"){
+                salvar()
+            }
+        })
+
+        async function salvar(){
+
+            const novoValor = input.value
+
+            const now = new Date()
+            const hoje =
+              now.getFullYear() + "-" +
+              String(now.getMonth()+1).padStart(2,"0") + "-" +
+              String(now.getDate()).padStart(2,"0")
+
+            let body = {}
+           
+            if(tipo === "checkin"){
+                body.checkin = `${hoje}T${novoValor}:00`
+            } else {
+                body.checkout = `${hoje}T${novoValor}:00`
+            }
+            
+            const res = await fetch(`/presencas/${presencaId}`,{
+                method:"PUT",
+                headers:{
+                    "Content-Type":"application/json",
+                    Authorization:"Bearer "+localStorage.getItem("token")
+                },
+                body: JSON.stringify(body)
+            })
+            
+            let dados = {}
+
+            try {
+                dados = await res.json()
+            } catch {
+                dados = { detail: "Erro interno" }
+            }
+
+            if(!res.ok){
+                alert(dados.detail || "Erro ao salvar")
+                editando = false
+                return
+            }
+
+            const novoSpan = document.createElement("span")
+            novoSpan.className = "hora-editavel"
+            novoSpan.dataset.id = presencaId
+            novoSpan.dataset.tipo = tipo
+            novoSpan.innerText = novoValor
+
+            input.replaceWith(novoSpan)
+
+            editando = false // 🔥 termina edição
+
+            carregarListasDashboard()
+        }
+    }
+})
 
 async function verificarAniversarios() {
     const res = await fetch("/aniversarios-proximos");

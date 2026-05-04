@@ -40,12 +40,32 @@ from fastapi import Body
 from app.models import Usuario, Empresa
 from app.security import gerar_hash_senha
 from sqlalchemy import func
+from sqlalchemy import asc
 from zoneinfo import ZoneInfo
 
 tz = ZoneInfo("America/Sao_Paulo")
 
 def agora():
     return datetime.now(tz)
+
+def parse_data(data_str):
+    if not data_str:
+        return None
+
+    try:
+        if len(data_str) == 16:
+            data_str += ":00"
+
+        dt = datetime.fromisoformat(data_str)
+
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=tz)
+
+        return dt
+
+    except Exception as e:
+        print("Erro ao converter data:", e)
+        return None
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -72,6 +92,7 @@ def listar_criancas(
 
     criancas = db.query(models.Crianca)\
         .filter(models.Crianca.empresa_id == usuario.empresa_id)\
+        .order_by(asc(models.Crianca.nome))\
         .all()
 
     resultado = []
@@ -280,7 +301,7 @@ def checkin(
 
         # 🟢 CHECK-IN MANUAL
         else:
-            data_checkin = datetime.fromisoformat(data_checkin).replace(tzinfo=tz)
+            data_checkin = parse_data(data_checkin)
 
             presenca = crud.fazer_checkin_manual(
                 db,
@@ -338,7 +359,7 @@ def checkout(
 
     # 🔥 MANUAL
     if data_checkout and data_checkout != "null":
-        presenca.checkout = datetime.fromisoformat(data_checkout).replace(tzinfo=tz)
+        presenca.checkout = parse_data(data_checkout)
         db.commit()
         db.refresh(presenca)
 
@@ -362,10 +383,10 @@ def criar_presenca_manual(
     if not crianca_id or not checkin:
         raise HTTPException(status_code=400, detail="Dados incompletos")
 
-    checkin = datetime.fromisoformat(checkin).replace(tzinfo=tz)
+    checkin = parse_data(checkin)
 
     if checkout:
-        checkout = datetime.fromisoformat(checkout).replace(tzinfo=tz)
+        checkout = parse_data(checkout)
 
         if checkout < checkin:
             raise HTTPException(status_code=400, detail="Checkout menor que checkin")
@@ -1562,35 +1583,6 @@ def calcular_valor(c, empresa, checkin, checkout):
     if dia_semana == 5:
         return empresa.valor_sabado or 0
 
-@app.put("/presencas/{presenca_id}")
-def editar_presenca(
-    presenca_id: int,
-    dados: dict,
-    db: Session = Depends(get_db),
-    usuario = Depends(get_usuario_atual)
-):
-    presenca = db.query(Presenca)\
-        .filter(
-            Presenca.id == presenca_id,
-            Presenca.empresa_id == usuario.empresa_id
-        ).first()
-
-    if not presenca:
-        raise HTTPException(status_code=404, detail="Presença não encontrada")
-
-    # 🔥 CHECKIN
-    if "checkin" in dados and dados["checkin"]:
-        presenca.checkin = datetime.fromisoformat(dados["checkin"])
-
-    # 🔥 CHECKOUT (CORRIGIDO)
-    if "checkout" in dados and dados["checkout"]:
-        presenca.checkout = datetime.fromisoformat(dados["checkout"])
-
-    db.commit()
-    db.refresh(presenca)
-
-    return presenca
-
 @app.post("/gastos")
 def criar_gasto(dados: dict, db: Session = Depends(get_db), usuario=Depends(get_usuario_atual)):
 
@@ -1797,7 +1789,7 @@ def pagina_recuperar_senha(request: Request):
 
 @app.get("/aniversarios-proximos")
 def aniversarios_proximos(db: Session = Depends(get_db)):
-    hoje = date.today()
+    hoje = agora().date()
     limite = hoje + timedelta(days=3)
 
     criancas = db.query(models.Crianca).all()
@@ -1819,3 +1811,47 @@ def aniversarios_proximos(db: Session = Depends(get_db)):
             })
 
     return resultado
+
+@app.put("/presencas/{presenca_id}")
+def editar_presenca(
+    presenca_id: int,
+    dados: dict,
+    db: Session = Depends(get_db),
+    usuario = Depends(get_usuario_atual)
+):
+    presenca = db.query(Presenca).filter(
+        Presenca.id == presenca_id,
+        Presenca.empresa_id == usuario.empresa_id
+    ).first()
+
+    if not presenca:
+        raise HTTPException(status_code=404, detail="Presença não encontrada")
+
+    novo_checkin = parse_data(dados.get("checkin"))
+    novo_checkout = parse_data(dados.get("checkout"))
+
+    # 🔥 SALVAR DE VERDADE
+
+    if novo_checkin is not None:
+        presenca.checkin = novo_checkin
+
+    if novo_checkout is not None:
+        presenca.checkout = novo_checkout
+
+    # 🔥 GARANTE TIMEZONE
+
+    if presenca.checkin and presenca.checkin.tzinfo is None:
+        presenca.checkin = presenca.checkin.replace(tzinfo=tz)
+
+    if presenca.checkout and presenca.checkout.tzinfo is None:
+        presenca.checkout = presenca.checkout.replace(tzinfo=tz)
+
+    # 🔥 VALIDAÇÃO
+
+    if presenca.checkout and presenca.checkout < presenca.checkin:
+        raise HTTPException(status_code=400, detail="Checkout menor que checkin")
+
+    db.commit()
+    db.refresh(presenca)
+
+    return presenca

@@ -718,6 +718,10 @@ white-space:nowrap;
     color: #6b21a8;
 }
 
+.hora-editavel {
+    cursor: pointer;
+    font-weight: bold;
+}
 /* GRID DAS LISTAS */
 .listas-dashboard {
     display: grid;
