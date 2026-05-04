@@ -115,20 +115,15 @@ function renderLista(id, dados, tipo) {
     if (tipo === "presente" || tipo === "checkin") {
       horario = p.checkin
         ? new Date(p.checkin).toLocaleTimeString('pt-BR', {
-              timeZone: 'America/Sao_Paulo',
-              hour: '2-digit',
-              minute: '2-digit'
+            hour: '2-digit',
+            minute: '2-digit'
           })
         : "";
     }
 
     if (tipo === "saiu") {
       horario = p.checkout
-        ? new Date(p.checkout).toLocaleTimeString('pt-BR', {
-              timeZone: 'America/Sao_Paulo',
-              hour: '2-digit',
-              minute: '2-digit'
-          })
+        ? new Date(p.checkout).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
         : "";
     }
 
@@ -143,13 +138,7 @@ function renderLista(id, dados, tipo) {
           <div class="status">${tipo}</div>
         </div>
       </div>
-
-      <span class="horario ${tipo} hora-editavel"
-            data-id="${p.id}"
-            data-tipo="${tipo === 'saiu' ? 'checkout' : 'checkin'}"
-            data-data="${p.checkin ? p.checkin.split('T')[0] : ''}">
-        ${horario}
-      </span>
+      <div class="horario ${tipo}">${horario}</div>
     `;
 
     lista.appendChild(div);
@@ -159,11 +148,8 @@ function renderLista(id, dados, tipo) {
   carregarListasDashboard();
 
   setInterval(() => {
-  if(!editando){
     carregarListasDashboard();
-  }
-}, 5000);
-
+  }, 5000);
 window.fecharModal = function () {
   const modal = document.getElementById("modal");
 
@@ -246,118 +232,12 @@ async function atualizarDashboard() {
         }
     });
 
-    let dados = null
-
-    try {
-        dados = await res.json()
-    } catch {
-        dados = { detail: "Erro interno no servidor" }
-    }
-
-    if(!res.ok){
-        alert(dados.detail || "Erro ao salvar")
-        return
-    };
+    const dados = await res.json();
 
     document.getElementById("presentesAgora").innerText = dados.presentes_agora;
     document.getElementById("totalHoje").innerText = dados.total_hoje;
     document.getElementById("jaSairam").innerText = dados.ja_sairam;
 }
-
-document.addEventListener("click", function(e){
-
-    if(e.target.classList.contains("hora-editavel")){
-
-        editando = true // 🔥 começa edição
-
-        const span = e.target
-        const valorAtual = span.innerText
-        const presencaId = span.dataset.id
-        const tipo = span.dataset.tipo
-
-        const input = document.createElement("input")
-        input.type = "time"
-        input.value = valorAtual.substring(0,5)
-
-        span.replaceWith(input)
-        input.focus()
-
-        // ❌ REMOVE blur (isso tava fechando sozinho)
-        // input.addEventListener("blur", salvar)
-
-        input.addEventListener("keydown", function(ev){
-            if(ev.key === "Enter"){
-                salvar()
-            }
-        })
-
-        async function salvar(){
-
-          const novoValor = input.value
-
-          if(!novoValor){
-              alert("Digite um horário")
-              return
-          }
-
-          // 🔥 PEGA DATA DO BACKEND (não do computador)
-          const dataBase = span.dataset.data || p?.checkin?.split("T")[0]
-
-          const hoje = dataBase || new Date().toISOString().split("T")[0]
-
-          let body = {}
-
-          if(tipo === "checkin"){
-              body.checkin = `${hoje}T${novoValor}:00`
-          } else {
-              body.checkout = `${hoje}T${novoValor}:00`
-          }
-
-          const res = await fetch(`/presencas/${presencaId}`,{
-              method:"PUT",
-              headers:{
-                  "Content-Type":"application/json",
-                  Authorization:"Bearer "+localStorage.getItem("token")
-              },
-              body: JSON.stringify(body)
-          })
-
-          let dados = {}
-
-          try {
-              dados = await res.json()
-          } catch {
-              dados = { detail: "Erro interno" }
-          }
-
-          if(!res.ok){
-              alert(dados.detail || "Erro ao salvar")
-              editando = false
-              return
-          }
-
-          // 🔥 USA O RETORNO DO BACKEND (garante horário correto)
-          const dataAtualizada = tipo === "checkin" ? dados.checkin : dados.checkout
-
-          const novoSpan = document.createElement("span")
-          novoSpan.className = "horario hora-editavel"
-          novoSpan.dataset.id = presencaId
-          novoSpan.dataset.tipo = tipo
-
-          novoSpan.innerText = new Date(dataAtualizada).toLocaleTimeString('pt-BR', {
-              timeZone: 'America/Sao_Paulo',
-              hour: '2-digit',
-              minute: '2-digit'
-          })
-
-          input.replaceWith(novoSpan)
-
-          editando = false
-
-          carregarListasDashboard()
-      }
-    }
-})
 
 async function verificarAniversarios() {
     const res = await fetch("/aniversarios-proximos");

@@ -9,12 +9,7 @@ import calendar
 from app.models import Mensalidade
 from sqlalchemy import func
 from app import models
-from zoneinfo import ZoneInfo
 
-tz = ZoneInfo("America/Sao_Paulo")
-
-def agora():
-    return datetime.now(tz)
 
 import requests
 
@@ -36,6 +31,7 @@ def criar_usuario(db: Session, usuario: schemas.UsuarioCreate):
 
 def fazer_checkin(db: Session, crianca_id: int, empresa_id: int):
 
+    # 1️⃣ Verifica se já está presente (sem checkout)
     presenca_aberta = db.query(Presenca)\
         .filter(
             Presenca.crianca_id == crianca_id,
@@ -47,29 +43,42 @@ def fazer_checkin(db: Session, crianca_id: int, empresa_id: int):
     if presenca_aberta:
         return None
 
-    hoje = agora().date()
+    # 2️⃣ Verifica se já teve check-in hoje
+    hoje = date.today()
 
     presenca_hoje = db.query(Presenca)\
     .filter(
         Presenca.crianca_id == crianca_id,
         Presenca.empresa_id == empresa_id,
-        Presenca.checkin >= datetime.combine(hoje, datetime.min.time(), tz),
-        Presenca.checkin <= datetime.combine(hoje, datetime.max.time(), tz)
+        Presenca.checkin >= datetime.combine(hoje, datetime.min.time()),
+        Presenca.checkin <= datetime.combine(hoje, datetime.max.time())
     )\
     .first()
 
     if presenca_hoje:
         return None
 
+    # 3️⃣ Se passou nas validações, cria check-in
     nova_presenca = Presenca(
         crianca_id=crianca_id,
         empresa_id=empresa_id,
-        checkin=agora()
+        checkin=datetime.now()
     )
+    inadimplente = db.query(models.Mensalidade)\
+    .filter(
+        models.Mensalidade.crianca_id == crianca_id,
+        models.Mensalidade.empresa_id == empresa_id,
+        models.Mensalidade.pago == False
+    )\
+    .first()
+
+    if inadimplente:
+        print("⚠ criança inadimplente")
 
     db.add(nova_presenca)
     db.commit()
     db.refresh(nova_presenca)
+    print("CHECKIN SALVO:", datetime.now())
 
     return nova_presenca
 
@@ -88,7 +97,7 @@ def fazer_checkin_manual(db, crianca_id, empresa_id, data_checkin):
     nova = Presenca(
         crianca_id=crianca_id,
         empresa_id=empresa_id,
-        checkin=data_checkin.replace(tzinfo=tz)
+        checkin=data_checkin
     )
 
     db.add(nova)
@@ -121,7 +130,7 @@ def fazer_checkout(db: Session, presenca_id: int):
     if not presenca:
         return None
 
-    presenca.checkout = agora()
+    presenca.checkout = datetime.now()
 
     crianca = presenca.crianca
 
@@ -184,28 +193,16 @@ def fechar_presencas_antigas(db):
         .all()
 
     for p in presencas:
-        p.checkout = datetime.now(tz)
+        p.checkout = datetime.now()
 
     db.commit()
 
 
 def listar_presentes(db: Session, empresa_id: int):
-    presencas = db.query(Presenca)\
+    return db.query(Presenca)\
     .filter(Presenca.empresa_id == empresa_id)\
     .filter(Presenca.checkout == None)\
     .all()
-
-    return [
-        {
-            "id": p.id,
-            "checkin": p.checkin.isoformat() if p.checkin else None,
-            "crianca": {
-                "id": p.crianca.id if p.crianca else None,
-                "nome": p.crianca.nome if p.crianca else "Sem nome"
-            }
-        }
-        for p in presencas
-    ]
 
 def autenticar_usuario(db: Session, email: str, senha: str):
 
@@ -360,7 +357,7 @@ def deletar_crianca(db: Session, crianca_id: int, empresa_id: int):
     return True
 
 def relatorio_hoje(db: Session, empresa_id: int):
-    hoje = agora().date()
+    hoje = date.today()
 
     presencas = db.query(Presenca)\
         .filter(Presenca.empresa_id == empresa_id)\
@@ -370,20 +367,12 @@ def relatorio_hoje(db: Session, empresa_id: int):
 
     for p in presencas:
         if p.checkin.date() == hoje:
-            resultado.append({
-                "id": p.id,
-                "checkin": p.checkin.isoformat() if p.checkin else None,
-                "checkout": p.checkout.isoformat() if p.checkout else None,
-                "crianca": {
-                    "id": p.crianca.id if p.crianca else None,
-                    "nome": p.crianca.nome if p.crianca else "Sem nome"
-                }
-            })
+            resultado.append(p)
 
     return resultado
 
 def resumo_diario(db: Session, empresa_id: int):
-    hoje = agora().date()
+    hoje = date.today()
 
     presencas = db.query(Presenca)\
         .filter(Presenca.empresa_id == empresa_id)\
@@ -408,7 +397,7 @@ def resumo_diario(db: Session, empresa_id: int):
     }
 
 def tempo_total_hoje(db: Session, empresa_id: int):
-    hoje = agora().date()
+    hoje = date.today()
 
     presencas = db.query(Presenca)\
         .filter(Presenca.empresa_id == empresa_id)\
@@ -420,7 +409,7 @@ def tempo_total_hoje(db: Session, empresa_id: int):
         if p.checkin.date() == hoje:
 
             # Se ainda não fez checkout, considera agora
-            checkout = p.checkout or agora()
+            checkout = p.checkout or datetime.now()
 
             minutos = int((checkout - p.checkin).total_seconds() / 60)
 
@@ -440,14 +429,7 @@ def calcular_valor_extra(checkin, checkout, horas_contratadas, tolerancia_minuto
     if not checkout or not horas_contratadas:
         return 0
 
-    
-    # garante que os dois têm timezone
-    if checkin.tzinfo is None:
-        checkin = checkin.replace(tzinfo=tz)
-
-    if checkout.tzinfo is None:
-        checkout = checkout.replace(tzinfo=tz)
-
+    #  diferença total em horas
     diferenca = checkout - checkin
     horas_total = diferenca.total_seconds() / 3600
 
@@ -498,7 +480,7 @@ def marcar_como_pago(db: Session, mensalidade_id: int, empresa_id: int):
         return None
 
     mensalidade.pago = True
-    mensalidade.data_pagamento = datetime.now(tz)
+    mensalidade.data_pagamento = datetime.now()
 
     db.commit()
     db.refresh(mensalidade)
@@ -506,7 +488,7 @@ def marcar_como_pago(db: Session, mensalidade_id: int, empresa_id: int):
 
 def gerar_cobrancas_whatsapp(db: Session):
 
-    hoje = agora().date()
+    hoje = date.today()
 
     mensalidades = db.query(models.Mensalidade)\
         .filter(models.Mensalidade.pago == False)\
@@ -657,8 +639,8 @@ def listar_cobrancas(db, empresa_id):
             "crianca_nome": c.crianca.nome if c.crianca else "",
             "valor": c.valor,
             "pago": c.pago,
-            "data_pagamento": c.data_pagamento.isoformat() if c.data_pagamento else None,
-            "data_vencimento": c.data_vencimento.isoformat() if c.data_vencimento else None,
+            "data_pagamento": c.data_pagamento,
+            "data_vencimento": c.data_vencimento,
             "telefone": c.crianca.responsaveis[0].telefone if c.crianca and c.crianca.responsaveis else "",
             "mes": c.mes
         })
@@ -678,7 +660,7 @@ def marcar_cobranca_como_paga(db: Session, cobranca_id: int, empresa_id: int):
         return None
 
     cobranca.pago = True
-    cobranca.data_pagamento = datetime.now(tz)  # 🔥 ESSENCIAL
+    cobranca.data_pagamento = datetime.now()  # 🔥 ESSENCIAL
 
     db.commit()
     db.refresh(cobranca)

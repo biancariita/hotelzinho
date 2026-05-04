@@ -40,34 +40,8 @@ from fastapi import Body
 from app.models import Usuario, Empresa
 from app.security import gerar_hash_senha
 from sqlalchemy import func
-from sqlalchemy import asc
-from zoneinfo import ZoneInfo
 
-tz = ZoneInfo("America/Sao_Paulo")
 
-def agora():
-    return datetime.now(tz)
-
-def parse_data(data_str):
-    if not data_str:
-        return None
-
-    try:
-        if len(data_str) == 16:
-            data_str += ":00"
-
-        dt = datetime.fromisoformat(data_str)
-
-        # 🔥 NÃO altera hora, só define timezone
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=tz)
-
-        return dt
-
-    except Exception as e:
-        print("Erro ao converter data:", e)
-        return None
-    
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
@@ -93,7 +67,6 @@ def listar_criancas(
 
     criancas = db.query(models.Crianca)\
         .filter(models.Crianca.empresa_id == usuario.empresa_id)\
-        .order_by(asc(models.Crianca.nome))\
         .all()
 
     resultado = []
@@ -231,7 +204,7 @@ def nova_senha(data: dict = Body(...), db: Session = Depends(get_db)):
 
 @app.get("/checkin-hoje")
 def listar_checkin_hoje(db: Session = Depends(get_db), usuario = Depends(get_usuario_atual)):
-    hoje = agora().date()
+    hoje = datetime.now().date()
 
     presencas = db.query(models.Presenca)\
         .filter(
@@ -250,7 +223,7 @@ def listar_checkin_hoje(db: Session = Depends(get_db), usuario = Depends(get_usu
 
 @app.get("/checkout-hoje")
 def listar_checkout_hoje(db: Session = Depends(get_db), usuario = Depends(get_usuario_atual)):
-    hoje = agora().date()
+    hoje = datetime.now().date()
 
     presencas = db.query(models.Presenca)\
         .filter(
@@ -270,7 +243,9 @@ def listar_checkout_hoje(db: Session = Depends(get_db), usuario = Depends(get_us
 def formatar_hora_br(data):
     if not data:
         return ""
-    return data.strftime("%H:%M")
+
+    # 🔥 força horário Brasil
+    return (data - timedelta(hours=3)).strftime("%H:%M")
 
 @app.post("/checkin/{crianca_id}")
 def checkin(
@@ -279,7 +254,7 @@ def checkin(
     db: Session = Depends(get_db),
     usuario = Depends(get_usuario_atual)
 ):
-    
+
     try:
         data_checkin = dados.get("checkin")
 
@@ -298,15 +273,11 @@ def checkin(
                     detail="Criança já está presente ou já fez check-in hoje"
                 )
 
-            return {
-                "id": presenca.id,
-                "checkin": presenca.checkin.isoformat() if presenca.checkin else None,
-                "checkout": presenca.checkout.isoformat() if presenca.checkout else None
-            }
+            return presenca
 
         # 🟢 CHECK-IN MANUAL
         else:
-            data_checkin = parse_data(data_checkin)
+            data_checkin = datetime.fromisoformat(data_checkin)
 
             presenca = crud.fazer_checkin_manual(
                 db,
@@ -321,11 +292,7 @@ def checkin(
                     detail="Já existe check-in aberto para essa criança"
                 )
 
-            return {
-                "id": presenca.id,
-                "checkin": presenca.checkin.isoformat() if presenca.checkin else None,
-                "checkout": presenca.checkout.isoformat() if presenca.checkout else None
-            }
+            return presenca
 
     except Exception as e:
         print("ERRO CHECKIN:", e)
@@ -368,7 +335,7 @@ def checkout(
 
     # 🔥 MANUAL
     if data_checkout and data_checkout != "null":
-        presenca.checkout = parse_data(data_checkout)
+        presenca.checkout = datetime.fromisoformat(data_checkout)
         db.commit()
         db.refresh(presenca)
 
@@ -376,11 +343,7 @@ def checkout(
     else:
         presenca = crud.fazer_checkout(db, presenca.id)
 
-    return {
-        "id": presenca.id,
-        "checkin": presenca.checkin.isoformat() if presenca.checkin else None,
-        "checkout": presenca.checkout.isoformat() if presenca.checkout else None
-    }
+    return presenca
 
 @app.post("/presenca-manual")
 def criar_presenca_manual(
@@ -396,10 +359,10 @@ def criar_presenca_manual(
     if not crianca_id or not checkin:
         raise HTTPException(status_code=400, detail="Dados incompletos")
 
-    checkin = parse_data(checkin)
+    checkin = datetime.fromisoformat(checkin)
 
     if checkout:
-        checkout = parse_data(checkout)
+        checkout = datetime.fromisoformat(checkout)
 
         if checkout < checkin:
             raise HTTPException(status_code=400, detail="Checkout menor que checkin")
@@ -511,8 +474,7 @@ def listar_presentes(
     return [
         {
             "id": p.id,
-            "checkin": p.checkin.isoformat() if p.checkin else None,
-            "checkout": p.checkout.isoformat() if p.checkout else None,
+            "checkin": p.checkin,
             "crianca": {
                 "id": p.crianca.id if p.crianca else None,
                 "nome": p.crianca.nome if p.crianca else "Sem nome"
@@ -521,7 +483,7 @@ def listar_presentes(
         for p in presencas
     ]
 
-@app.get("/relatorio-hoje", response_model=list[schemas.PresencaSimples])
+@app.get("/relatorio-hoje", response_model=list[schemas.PresencaResponse])
 def relatorio(
     db: Session = Depends(get_db),
     usuario = Depends(get_usuario_atual)
@@ -726,11 +688,11 @@ def pagar_cobranca(
         raise HTTPException(status_code=404, detail="Cobrança não encontrada")
 
     cobranca.pago = True
-    cobranca.data_pagamento = agora()
+    cobranca.data_pagamento = datetime.now()
 
     db.commit()
 
-    mes = agora().strftime("%m/%Y")
+    mes = datetime.now().strftime("%m/%Y")
 
     novo_faturamento = models.Faturamento(
         descricao=f"Mensalidade - {cobranca.crianca.nome}",
@@ -1245,7 +1207,7 @@ async def webhook_asaas(
         if data_pagamento:
             cobranca.data_pagamento = datetime.strptime(data_pagamento, "%Y-%m-%d")
         else:
-            cobranca.data_pagamento = agora()
+            cobranca.data_pagamento = datetime.now()
 
         db.commit()
 
@@ -1353,13 +1315,7 @@ def dados_ficha_crianca(
         ]
     },
 
-    "presencas": [
-        {
-            "checkin": p.checkin.isoformat() if p.checkin else None,
-            "checkout": p.checkout.isoformat() if p.checkout else None
-        }
-        for p in presencas
-    ],
+    "presencas": presencas,
     "cobrancas": cobrancas
 
     }
@@ -1554,7 +1510,7 @@ def historico_crianca(
                 resultado[mes]["extras"].append({
                     "descricao": i.descricao,
                     "valor": i.valor,
-                    "data": i.data.isoformat() if i.data else None
+                    "data": i.data
                 })
 
         resultado[mes]["pagamentos"].append({
@@ -1587,7 +1543,7 @@ def historico_crianca(
                 horas = 0
 
         resultado[mes]["presencas"].append({
-            "data": p.checkin.isoformat() if p.checkin else None,
+            "data": p.checkin,
             "horas": round(horas, 2)
         })
 
@@ -1603,12 +1559,41 @@ def calcular_valor(c, empresa, checkin, checkout):
     if dia_semana == 5:
         return empresa.valor_sabado or 0
 
+@app.put("/presencas/{presenca_id}")
+def editar_presenca(
+    presenca_id: int,
+    dados: dict,
+    db: Session = Depends(get_db),
+    usuario = Depends(get_usuario_atual)
+):
+    presenca = db.query(Presenca)\
+        .filter(
+            Presenca.id == presenca_id,
+            Presenca.empresa_id == usuario.empresa_id
+        ).first()
+
+    if not presenca:
+        raise HTTPException(status_code=404, detail="Presença não encontrada")
+
+    # 🔥 CHECKIN
+    if "checkin" in dados and dados["checkin"]:
+        presenca.checkin = datetime.fromisoformat(dados["checkin"])
+
+    # 🔥 CHECKOUT (CORRIGIDO)
+    if "checkout" in dados and dados["checkout"]:
+        presenca.checkout = datetime.fromisoformat(dados["checkout"])
+
+    db.commit()
+    db.refresh(presenca)
+
+    return presenca
+
 @app.post("/gastos")
 def criar_gasto(dados: dict, db: Session = Depends(get_db), usuario=Depends(get_usuario_atual)):
 
     from datetime import datetime
 
-    mes = agora().strftime("%m/%Y")  # 🔥 AQUI TAMBÉM
+    mes = datetime.now().strftime("%m/%Y")  # 🔥 AQUI TAMBÉM
 
     novo = models.Gasto(
         descricao=dados.get("descricao"),
@@ -1686,7 +1671,7 @@ def criar_faturamento(dados: dict, db: Session = Depends(get_db), usuario=Depend
 
     from datetime import datetime
 
-    mes = agora().strftime("%m/%Y")  # 🔥 AQUI
+    mes = datetime.now().strftime("%m/%Y")  # 🔥 AQUI
 
     novo = models.Faturamento(
         descricao=dados.get("descricao"),
@@ -1809,7 +1794,7 @@ def pagina_recuperar_senha(request: Request):
 
 @app.get("/aniversarios-proximos")
 def aniversarios_proximos(db: Session = Depends(get_db)):
-    hoje = agora().date()
+    hoje = date.today()
     limite = hoje + timedelta(days=3)
 
     criancas = db.query(models.Crianca).all()
@@ -1832,72 +1817,4 @@ def aniversarios_proximos(db: Session = Depends(get_db)):
 
     return resultado
 
-def garantir_tz(dt):
-    if dt is None:
-        return None
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=tz)
-    return dt
-
-
-@app.put("/presencas/{presenca_id}")
-def editar_presenca(
-    presenca_id: int,
-    dados: dict,
-    db: Session = Depends(get_db),
-    usuario = Depends(get_usuario_atual)
-):
-    presenca = db.query(Presenca).filter(
-        Presenca.id == presenca_id,
-        Presenca.empresa_id == usuario.empresa_id
-    ).first()
-
-    if not presenca:
-        raise HTTPException(status_code=404, detail="Presença não encontrada")
-
-    # 🔥 parse
-    novo_checkin = parse_data(dados.get("checkin"))
-    novo_checkout = parse_data(dados.get("checkout"))
-
-    # 🔥 GARANTE TIMEZONE EM TUDO
-    novo_checkin = garantir_tz(novo_checkin)
-    novo_checkout = garantir_tz(novo_checkout)
-    presenca.checkin = garantir_tz(presenca.checkin)
-    presenca.checkout = garantir_tz(presenca.checkout)
-
-    # ==========================
-    # CHECKIN
-    # ==========================
-    if novo_checkin:
-        presenca.checkin = novo_checkin
-
-        # se checkout ficou inválido, limpa
-        if presenca.checkout and presenca.checkout < novo_checkin:
-            presenca.checkout = None
-
-    # ==========================
-    # CHECKOUT
-    # ==========================
-    if novo_checkout is not None:
-        if presenca.checkin and novo_checkout < presenca.checkin:
-            raise HTTPException(
-                status_code=400,
-                detail="Checkout menor que checkin"
-            )
-
-        presenca.checkout = novo_checkout
-
-    # ==========================
-    # SALVAR
-    # ==========================
-    db.commit()
-    db.refresh(presenca)
-
-    # ==========================
-    # RETORNO PADRÃO
-    # ==========================
-    return {
-        "id": presenca.id,
-        "checkin": presenca.checkin.isoformat() if presenca.checkin else None,
-        "checkout": presenca.checkout.isoformat() if presenca.checkout else None
-    }
+print(datetime.now())
