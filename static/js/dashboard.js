@@ -115,8 +115,9 @@ function renderLista(id, dados, tipo) {
     if (tipo === "presente" || tipo === "checkin") {
       horario = p.checkin
         ? new Date(p.checkin).toLocaleTimeString('pt-BR', {
-            hour: '2-digit',
-            minute: '2-digit'
+              timeZone: 'America/Sao_Paulo',
+              hour: '2-digit',
+              minute: '2-digit'
           })
         : "";
     }
@@ -124,8 +125,9 @@ function renderLista(id, dados, tipo) {
     if (tipo === "saiu") {
       horario = p.checkout
         ? new Date(p.checkout).toLocaleTimeString('pt-BR', {
-            hour: '2-digit',
-            minute: '2-digit'
+              timeZone: 'America/Sao_Paulo',
+              hour: '2-digit',
+              minute: '2-digit'
           })
         : "";
     }

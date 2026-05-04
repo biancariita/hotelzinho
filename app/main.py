@@ -58,6 +58,7 @@ def parse_data(data_str):
 
         dt = datetime.fromisoformat(data_str)
 
+        # 🔥 NÃO altera hora, só define timezone
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=tz)
 
@@ -66,7 +67,7 @@ def parse_data(data_str):
     except Exception as e:
         print("Erro ao converter data:", e)
         return None
-
+    
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
