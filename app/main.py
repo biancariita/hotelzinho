@@ -1832,6 +1832,14 @@ def aniversarios_proximos(db: Session = Depends(get_db)):
 
     return resultado
 
+def garantir_tz(dt):
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=tz)
+    return dt
+
+
 @app.put("/presencas/{presenca_id}")
 def editar_presenca(
     presenca_id: int,
@@ -1847,35 +1855,49 @@ def editar_presenca(
     if not presenca:
         raise HTTPException(status_code=404, detail="Presença não encontrada")
 
+    # 🔥 parse
     novo_checkin = parse_data(dados.get("checkin"))
     novo_checkout = parse_data(dados.get("checkout"))
 
-    # 🔥 SALVAR DE VERDADE
+    # 🔥 GARANTE TIMEZONE EM TUDO
+    novo_checkin = garantir_tz(novo_checkin)
+    novo_checkout = garantir_tz(novo_checkout)
+    presenca.checkin = garantir_tz(presenca.checkin)
+    presenca.checkout = garantir_tz(presenca.checkout)
 
-    if novo_checkin is not None:
+    # ==========================
+    # CHECKIN
+    # ==========================
+    if novo_checkin:
         presenca.checkin = novo_checkin
 
+        # se checkout ficou inválido, limpa
+        if presenca.checkout and presenca.checkout < novo_checkin:
+            presenca.checkout = None
+
+    # ==========================
+    # CHECKOUT
+    # ==========================
     if novo_checkout is not None:
+        if presenca.checkin and novo_checkout < presenca.checkin:
+            raise HTTPException(
+                status_code=400,
+                detail="Checkout menor que checkin"
+            )
+
         presenca.checkout = novo_checkout
 
-    # 🔥 GARANTE TIMEZONE
-
-    if presenca.checkin and presenca.checkin.tzinfo is None:
-        presenca.checkin = presenca.checkin.replace(tzinfo=tz)
-
-    if presenca.checkout and presenca.checkout.tzinfo is None:
-        presenca.checkout = presenca.checkout.replace(tzinfo=tz)
-
-    # 🔥 VALIDAÇÃO
-
-    if presenca.checkout and presenca.checkout < presenca.checkin:
-        raise HTTPException(status_code=400, detail="Checkout menor que checkin")
-
+    # ==========================
+    # SALVAR
+    # ==========================
     db.commit()
     db.refresh(presenca)
 
+    # ==========================
+    # RETORNO PADRÃO
+    # ==========================
     return {
-    "id": presenca.id,
-    "checkin": presenca.checkin.isoformat() if presenca.checkin else None,
-    "checkout": presenca.checkout.isoformat() if presenca.checkout else None
-}
+        "id": presenca.id,
+        "checkin": presenca.checkin.isoformat() if presenca.checkin else None,
+        "checkout": presenca.checkout.isoformat() if presenca.checkout else None
+    }
