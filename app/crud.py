@@ -9,7 +9,12 @@ import calendar
 from app.models import Mensalidade
 from sqlalchemy import func
 from app import models
+from zoneinfo import ZoneInfo
 
+tz = ZoneInfo("America/Sao_Paulo")
+
+def agora():
+    return datetime.now(tz)
 
 import requests
 
@@ -31,7 +36,6 @@ def criar_usuario(db: Session, usuario: schemas.UsuarioCreate):
 
 def fazer_checkin(db: Session, crianca_id: int, empresa_id: int):
 
-    # 1️⃣ Verifica se já está presente (sem checkout)
     presenca_aberta = db.query(Presenca)\
         .filter(
             Presenca.crianca_id == crianca_id,
@@ -43,42 +47,29 @@ def fazer_checkin(db: Session, crianca_id: int, empresa_id: int):
     if presenca_aberta:
         return None
 
-    # 2️⃣ Verifica se já teve check-in hoje
-    hoje = date.today()
+    hoje = agora().date()
 
     presenca_hoje = db.query(Presenca)\
     .filter(
         Presenca.crianca_id == crianca_id,
         Presenca.empresa_id == empresa_id,
-        Presenca.checkin >= datetime.combine(hoje, datetime.min.time()),
-        Presenca.checkin <= datetime.combine(hoje, datetime.max.time())
+        Presenca.checkin >= datetime.combine(hoje, datetime.min.time(), tz),
+        Presenca.checkin <= datetime.combine(hoje, datetime.max.time(), tz)
     )\
     .first()
 
     if presenca_hoje:
         return None
 
-    # 3️⃣ Se passou nas validações, cria check-in
     nova_presenca = Presenca(
         crianca_id=crianca_id,
         empresa_id=empresa_id,
-        checkin=datetime.now()
+        checkin=agora()
     )
-    inadimplente = db.query(models.Mensalidade)\
-    .filter(
-        models.Mensalidade.crianca_id == crianca_id,
-        models.Mensalidade.empresa_id == empresa_id,
-        models.Mensalidade.pago == False
-    )\
-    .first()
-
-    if inadimplente:
-        print("⚠ criança inadimplente")
 
     db.add(nova_presenca)
     db.commit()
     db.refresh(nova_presenca)
-    print("CHECKIN SALVO:", datetime.now())
 
     return nova_presenca
 
@@ -97,7 +88,7 @@ def fazer_checkin_manual(db, crianca_id, empresa_id, data_checkin):
     nova = Presenca(
         crianca_id=crianca_id,
         empresa_id=empresa_id,
-        checkin=data_checkin
+        checkin=data_checkin.replace(tzinfo=tz)
     )
 
     db.add(nova)
@@ -130,7 +121,7 @@ def fazer_checkout(db: Session, presenca_id: int):
     if not presenca:
         return None
 
-    presenca.checkout = datetime.now()
+    presenca.checkout = agora()
 
     crianca = presenca.crianca
 
@@ -193,7 +184,7 @@ def fechar_presencas_antigas(db):
         .all()
 
     for p in presencas:
-        p.checkout = datetime.now()
+        p.checkout = datetime.now(tz)
 
     db.commit()
 
@@ -357,7 +348,7 @@ def deletar_crianca(db: Session, crianca_id: int, empresa_id: int):
     return True
 
 def relatorio_hoje(db: Session, empresa_id: int):
-    hoje = date.today()
+    hoje = agora().date()
 
     presencas = db.query(Presenca)\
         .filter(Presenca.empresa_id == empresa_id)\
@@ -372,7 +363,7 @@ def relatorio_hoje(db: Session, empresa_id: int):
     return resultado
 
 def resumo_diario(db: Session, empresa_id: int):
-    hoje = date.today()
+    hoje = agora().date()
 
     presencas = db.query(Presenca)\
         .filter(Presenca.empresa_id == empresa_id)\
@@ -397,7 +388,7 @@ def resumo_diario(db: Session, empresa_id: int):
     }
 
 def tempo_total_hoje(db: Session, empresa_id: int):
-    hoje = date.today()
+    hoje = agora().date()
 
     presencas = db.query(Presenca)\
         .filter(Presenca.empresa_id == empresa_id)\
@@ -409,7 +400,7 @@ def tempo_total_hoje(db: Session, empresa_id: int):
         if p.checkin.date() == hoje:
 
             # Se ainda não fez checkout, considera agora
-            checkout = p.checkout or datetime.now()
+            checkout = p.checkout or agora()
 
             minutos = int((checkout - p.checkin).total_seconds() / 60)
 
@@ -429,7 +420,14 @@ def calcular_valor_extra(checkin, checkout, horas_contratadas, tolerancia_minuto
     if not checkout or not horas_contratadas:
         return 0
 
-    #  diferença total em horas
+    
+    # garante que os dois têm timezone
+    if checkin.tzinfo is None:
+        checkin = checkin.replace(tzinfo=tz)
+
+    if checkout.tzinfo is None:
+        checkout = checkout.replace(tzinfo=tz)
+
     diferenca = checkout - checkin
     horas_total = diferenca.total_seconds() / 3600
 
@@ -480,7 +478,7 @@ def marcar_como_pago(db: Session, mensalidade_id: int, empresa_id: int):
         return None
 
     mensalidade.pago = True
-    mensalidade.data_pagamento = datetime.now()
+    mensalidade.data_pagamento = datetime.now(tz)
 
     db.commit()
     db.refresh(mensalidade)
@@ -488,7 +486,7 @@ def marcar_como_pago(db: Session, mensalidade_id: int, empresa_id: int):
 
 def gerar_cobrancas_whatsapp(db: Session):
 
-    hoje = date.today()
+    hoje = agora().date()
 
     mensalidades = db.query(models.Mensalidade)\
         .filter(models.Mensalidade.pago == False)\
@@ -660,7 +658,7 @@ def marcar_cobranca_como_paga(db: Session, cobranca_id: int, empresa_id: int):
         return None
 
     cobranca.pago = True
-    cobranca.data_pagamento = datetime.now()  # 🔥 ESSENCIAL
+    cobranca.data_pagamento = datetime.now(tz)  # 🔥 ESSENCIAL
 
     db.commit()
     db.refresh(cobranca)

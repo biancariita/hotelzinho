@@ -40,7 +40,12 @@ from fastapi import Body
 from app.models import Usuario, Empresa
 from app.security import gerar_hash_senha
 from sqlalchemy import func
+from zoneinfo import ZoneInfo
 
+tz = ZoneInfo("America/Sao_Paulo")
+
+def agora():
+    return datetime.now(tz)
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -204,7 +209,7 @@ def nova_senha(data: dict = Body(...), db: Session = Depends(get_db)):
 
 @app.get("/checkin-hoje")
 def listar_checkin_hoje(db: Session = Depends(get_db), usuario = Depends(get_usuario_atual)):
-    hoje = datetime.now().date()
+    hoje = agora().date()
 
     presencas = db.query(models.Presenca)\
         .filter(
@@ -223,7 +228,7 @@ def listar_checkin_hoje(db: Session = Depends(get_db), usuario = Depends(get_usu
 
 @app.get("/checkout-hoje")
 def listar_checkout_hoje(db: Session = Depends(get_db), usuario = Depends(get_usuario_atual)):
-    hoje = datetime.now().date()
+    hoje = agora().date()
 
     presencas = db.query(models.Presenca)\
         .filter(
@@ -243,9 +248,7 @@ def listar_checkout_hoje(db: Session = Depends(get_db), usuario = Depends(get_us
 def formatar_hora_br(data):
     if not data:
         return ""
-
-    # 🔥 força horário Brasil
-    return (data - timedelta(hours=3)).strftime("%H:%M")
+    return data.strftime("%H:%M")
 
 @app.post("/checkin/{crianca_id}")
 def checkin(
@@ -254,7 +257,7 @@ def checkin(
     db: Session = Depends(get_db),
     usuario = Depends(get_usuario_atual)
 ):
-
+    
     try:
         data_checkin = dados.get("checkin")
 
@@ -277,7 +280,7 @@ def checkin(
 
         # 🟢 CHECK-IN MANUAL
         else:
-            data_checkin = datetime.fromisoformat(data_checkin)
+            data_checkin = datetime.fromisoformat(data_checkin).replace(tzinfo=tz)
 
             presenca = crud.fazer_checkin_manual(
                 db,
@@ -335,7 +338,7 @@ def checkout(
 
     # 🔥 MANUAL
     if data_checkout and data_checkout != "null":
-        presenca.checkout = datetime.fromisoformat(data_checkout)
+        presenca.checkout = datetime.fromisoformat(data_checkout).replace(tzinfo=tz)
         db.commit()
         db.refresh(presenca)
 
@@ -359,10 +362,10 @@ def criar_presenca_manual(
     if not crianca_id or not checkin:
         raise HTTPException(status_code=400, detail="Dados incompletos")
 
-    checkin = datetime.fromisoformat(checkin)
+    checkin = datetime.fromisoformat(checkin).replace(tzinfo=tz)
 
     if checkout:
-        checkout = datetime.fromisoformat(checkout)
+        checkout = datetime.fromisoformat(checkout).replace(tzinfo=tz)
 
         if checkout < checkin:
             raise HTTPException(status_code=400, detail="Checkout menor que checkin")
@@ -688,11 +691,11 @@ def pagar_cobranca(
         raise HTTPException(status_code=404, detail="Cobrança não encontrada")
 
     cobranca.pago = True
-    cobranca.data_pagamento = datetime.now()
+    cobranca.data_pagamento = agora()
 
     db.commit()
 
-    mes = datetime.now().strftime("%m/%Y")
+    mes = agora().strftime("%m/%Y")
 
     novo_faturamento = models.Faturamento(
         descricao=f"Mensalidade - {cobranca.crianca.nome}",
@@ -1207,7 +1210,7 @@ async def webhook_asaas(
         if data_pagamento:
             cobranca.data_pagamento = datetime.strptime(data_pagamento, "%Y-%m-%d")
         else:
-            cobranca.data_pagamento = datetime.now()
+            cobranca.data_pagamento = agora()
 
         db.commit()
 
@@ -1593,7 +1596,7 @@ def criar_gasto(dados: dict, db: Session = Depends(get_db), usuario=Depends(get_
 
     from datetime import datetime
 
-    mes = datetime.now().strftime("%m/%Y")  # 🔥 AQUI TAMBÉM
+    mes = agora().strftime("%m/%Y")  # 🔥 AQUI TAMBÉM
 
     novo = models.Gasto(
         descricao=dados.get("descricao"),
@@ -1671,7 +1674,7 @@ def criar_faturamento(dados: dict, db: Session = Depends(get_db), usuario=Depend
 
     from datetime import datetime
 
-    mes = datetime.now().strftime("%m/%Y")  # 🔥 AQUI
+    mes = agora().strftime("%m/%Y")  # 🔥 AQUI
 
     novo = models.Faturamento(
         descricao=dados.get("descricao"),
@@ -1816,5 +1819,3 @@ def aniversarios_proximos(db: Session = Depends(get_db)):
             })
 
     return resultado
-
-print(datetime.now())
