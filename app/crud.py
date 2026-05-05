@@ -34,21 +34,19 @@ def criar_usuario(db: Session, usuario: schemas.UsuarioCreate):
 
 def fazer_checkin(db: Session, crianca_id: int, empresa_id: int):
 
-    # 1️⃣ Verifica se já está presente (sem checkout)
     presenca_aberta = db.query(Presenca)\
         .filter(
             Presenca.crianca_id == crianca_id,
             Presenca.empresa_id == empresa_id,
             Presenca.checkout == None
-        )\
-        .first()
+        ).first()
 
     if presenca_aberta:
         return None
 
-    # 2️⃣ Verifica se já teve check-in hoje
+    # 🔥 calcula início e fim do dia (Brasil → UTC)
     inicio = datetime.now(ZoneInfo("America/Sao_Paulo"))\
-    .replace(hour=0, minute=0, second=0, microsecond=0)
+        .replace(hour=0, minute=0, second=0, microsecond=0)
 
     inicio = inicio.astimezone(timezone.utc)
     fim = inicio + timedelta(days=1)
@@ -59,33 +57,20 @@ def fazer_checkin(db: Session, crianca_id: int, empresa_id: int):
             Presenca.empresa_id == empresa_id,
             Presenca.checkin >= inicio,
             Presenca.checkin < fim
-        )\
-        .first()
+        ).first()
 
     if presenca_hoje:
         return None
 
-    # 3️⃣ Se passou nas validações, cria check-in
     nova_presenca = Presenca(
         crianca_id=crianca_id,
         empresa_id=empresa_id,
         checkin=datetime.now(timezone.utc)
     )
-    inadimplente = db.query(models.Mensalidade)\
-    .filter(
-        models.Mensalidade.crianca_id == crianca_id,
-        models.Mensalidade.empresa_id == empresa_id,
-        models.Mensalidade.pago == False
-    )\
-    .first()
-
-    if inadimplente:
-        print("⚠ criança inadimplente")
 
     db.add(nova_presenca)
     db.commit()
     db.refresh(nova_presenca)
-    print("CHECKIN SALVO:", datetime.now(timezone.utc))
 
     return nova_presenca
 

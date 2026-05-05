@@ -253,54 +253,44 @@ def checkin(
     usuario = Depends(get_usuario_atual)
 ):
 
-    try:
-        data_checkin = dados.get("checkin")
+    data_checkin = dados.get("checkin")
 
-        # 🔵 CHECK-IN AUTOMÁTICO (COM VALIDAÇÃO)
-        if not data_checkin:
+    # 🔵 AUTOMÁTICO
+    if not data_checkin:
 
-            presenca = crud.fazer_checkin(
-                db,
-                crianca_id,
-                usuario.empresa_id
+        presenca = crud.fazer_checkin(
+            db,
+            crianca_id,
+            usuario.empresa_id
+        )
+
+        if not presenca:
+            raise HTTPException(
+                status_code=400,
+                detail="Criança já está presente ou já fez check-in hoje"
             )
 
-            if not presenca:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Criança já está presente ou já fez check-in hoje"
-                )
+        return presenca
 
-            return presenca
+    # 🟢 MANUAL
+    data_checkin = datetime.fromisoformat(data_checkin)
+    data_checkin = data_checkin.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+    data_checkin = data_checkin.astimezone(timezone.utc)
 
-        # 🟢 CHECK-IN MANUAL
-        else:
-            data_checkin = datetime.fromisoformat(data_checkin)
+    presenca = crud.fazer_checkin_manual(
+        db,
+        crianca_id,
+        usuario.empresa_id,
+        data_checkin
+    )
 
-            # assume que veio horário Brasil
-            data_checkin = data_checkin.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+    if not presenca:
+        raise HTTPException(
+            status_code=400,
+            detail="Já existe check-in aberto"
+        )
 
-            # converte pra UTC antes de salvar
-            data_checkin = data_checkin.astimezone(timezone.utc)
-
-            presenca = crud.fazer_checkin_manual(
-                db,
-                crianca_id,
-                usuario.empresa_id,
-                data_checkin
-            )
-
-            if not presenca:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Já existe check-in aberto para essa criança"
-                )
-
-            return presenca
-
-    except Exception as e:
-        print("ERRO CHECKIN:", e)
-        raise HTTPException(status_code=400, detail=str(e))
+    return presenca
 
 @app.put("/checkout/{crianca_id}")
 def checkout(
@@ -310,48 +300,31 @@ def checkout(
     usuario = Depends(get_usuario_atual)
 ):
 
-    presenca_id = dados.get("presenca_id")
-    data_checkout = dados.get("checkout")
-
-    if presenca_id:
-        presenca = db.query(Presenca).filter(
-            Presenca.id == presenca_id,
-            Presenca.empresa_id == usuario.empresa_id
-        ).first()
-
-    elif data_checkout and data_checkout != "null":
-        presenca = db.query(Presenca).filter(
+    presenca = db.query(Presenca)\
+        .filter(
             Presenca.crianca_id == crianca_id,
-            Presenca.empresa_id == usuario.empresa_id
-        ).order_by(Presenca.checkin.desc()).first()
-
-    else:
-        presenca = db.query(Presenca)\
-            .filter(
-                Presenca.crianca_id == crianca_id,
-                Presenca.empresa_id == usuario.empresa_id,
-                Presenca.checkout == None
-            )\
-            .first()
+            Presenca.empresa_id == usuario.empresa_id,
+            Presenca.checkout == None
+        ).first()
 
     if not presenca:
         raise HTTPException(status_code=404, detail="Presença não encontrada")
 
-    # 🔥 MANUAL
+    data_checkout = dados.get("checkout")
+
+    # 🔵 MANUAL
     if data_checkout and data_checkout != "null":
-        data_checkout = datetime.fromisoformat(data_checkout)
+        dt = datetime.fromisoformat(data_checkout)
+        dt = dt.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+        presenca.checkout = dt.astimezone(timezone.utc)
 
-        # assume horário Brasil
-        data_checkout = data_checkout.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
-
-        # converte pra UTC antes de salvar
-        presenca.checkout = data_checkout.astimezone(timezone.utc)
         db.commit()
         db.refresh(presenca)
 
-    # 🔥 AUTOMÁTICO (USA CRUD)
-    else:
-        presenca = crud.fazer_checkout(db, presenca.id)
+        return presenca
+
+    # 🔵 AUTOMÁTICO
+    presenca = crud.fazer_checkout(db, presenca.id)
 
     return presenca
 
@@ -364,27 +337,27 @@ def criar_presenca_manual(
 
     crianca_id = dados.get("crianca_id")
     checkin_str = dados.get("checkin")
+    checkout_str = dados.get("checkout")
+
+    if not crianca_id or not checkin_str:
+        raise HTTPException(status_code=400, detail="Dados incompletos")
+
+    # 🔥 CHECKIN
     checkin = datetime.fromisoformat(checkin_str)
     checkin = checkin.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
     checkin = checkin.astimezone(timezone.utc)
 
-    if checkout:
-        checkout = datetime.fromisoformat(checkout)
+    # 🔥 CHECKOUT
+    checkout = None
+    if checkout_str:
+        checkout = datetime.fromisoformat(checkout_str)
         checkout = checkout.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
         checkout = checkout.astimezone(timezone.utc)
-
-    if not crianca_id or not checkin:
-        raise HTTPException(status_code=400, detail="Dados incompletos")
-
-    checkin = datetime.fromisoformat(checkin)
-
-    if checkout:
-        checkout = datetime.fromisoformat(checkout)
 
         if checkout < checkin:
             raise HTTPException(status_code=400, detail="Checkout menor que checkin")
 
-    # 🔥 evita duplicidade no mesmo dia
+    # 🔥 evita duplicidade no dia (correto com timezone)
     inicio_dia = checkin.astimezone(ZoneInfo("America/Sao_Paulo"))\
         .replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -415,15 +388,13 @@ def criar_presenca_manual(
     db.commit()
     db.refresh(nova)
 
-    # 🔥 AQUI ESTÁ A CORREÇÃO PRINCIPAL
-   # 🔥 CALCULO EXTRA
+    # 🔥 CALCULO EXTRA (mantido)
     if checkout:
 
         horas = (checkout - checkin).total_seconds() / 3600
         horas = max(horas, 0)
 
         crianca = db.query(Crianca).filter(Crianca.id == crianca_id).first()
-
         horas_contratadas = crianca.horas_contratadas or 0
 
         if horas > horas_contratadas:
@@ -433,36 +404,34 @@ def criar_presenca_manual(
 
             mes = checkin.strftime("%m/%Y")
 
-            # 🔥 BUSCA COBRANÇA
             cobranca = db.query(Cobranca).filter(
                 Cobranca.crianca_id == crianca_id,
                 Cobranca.mes == mes
             ).first()
 
-            # 🔥 SE NÃO EXISTIR → CRIA COM MENSALIDADE
             if not cobranca:
                 cobranca = Cobranca(
                     crianca_id=crianca_id,
                     empresa_id=usuario.empresa_id,
                     mes=mes,
-                    valor=crianca.valor or 0  # 🔥 mensalidade
+                    valor=crianca.valor or 0
                 )
                 db.add(cobranca)
                 db.flush()
 
-            # 🔥 SOMA EXTRA
             cobranca.valor += valor_extra
 
-            # 🔥 SALVA ITEM
             item = models.CobrancaItem(
                 cobranca_id=cobranca.id,
                 descricao=f"Hora extra - {checkin.strftime('%d/%m')}",
                 valor=valor_extra,
-                data=checkin  # 🔥 AQUI ESTÁ A CORREÇÃO
+                data=checkin
             )
 
             db.add(item)
             db.commit()
+
+    return nova
 
 def adicionar_detalhe(cobranca, tipo, valor):
 
