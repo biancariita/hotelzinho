@@ -4,6 +4,14 @@ if (!token){
 window.location.href="/login-page"
 }
 
+function formatarHora(data) {
+  return new Date(data).toLocaleTimeString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
 function carregarPresencas(){
 
 fetch("/presentes",{
@@ -28,7 +36,7 @@ const linha = `
 
 <td>${p.crianca.nome}</td>
 
-<td>${entrada.toLocaleTimeString()}</td>
+<td>${formatarHora(p.checkin)}</td>
 
 <td>${calcularTempo(entrada)}</td>
 

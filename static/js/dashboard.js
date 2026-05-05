@@ -100,6 +100,14 @@ async function carregarListasDashboard() {
 }
 
 
+function formatarHora(data) {
+  return new Date(data).toLocaleTimeString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
 function renderLista(id, dados, tipo) {
 
   const lista = document.getElementById(id);
@@ -114,17 +122,13 @@ function renderLista(id, dados, tipo) {
 
     if (tipo === "presente" || tipo === "checkin") {
       horario = p.checkin
-        ? new Date(p.checkin).toLocaleTimeString('pt-BR', {
-            timeZone: 'America/Sao_Paulo',
-            hour: '2-digit',
-            minute: '2-digit'
-          })
+        ? formatarHora(p.checkin)
         : "";
     }
 
     if (tipo === "saiu") {
       horario = p.checkout
-        ? new Date(p.checkout).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+        ? formatarHora(p.checkout)
         : "";
     }
 
