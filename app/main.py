@@ -206,7 +206,7 @@ def nova_senha(data: dict = Body(...), db: Session = Depends(get_db)):
 
 @app.get("/checkin-hoje")
 def listar_checkin_hoje(db: Session = Depends(get_db), usuario = Depends(get_usuario_atual)):
-    hoje = datetime.now(timezone.utc).date()
+    hoje = datetime.now(ZoneInfo("America/Sao_Paulo")).date()
 
     presencas = db.query(models.Presenca)\
         .filter(
@@ -217,7 +217,7 @@ def listar_checkin_hoje(db: Session = Depends(get_db), usuario = Depends(get_usu
     return [
         {
             "nome": p.crianca.nome if p.crianca else "Sem nome",
-            "hora": formatar_hora_br(p.checkin) if p.checkin else ""
+            "hora": p.checkin if p.checkin else ""
         }
         for p in presencas
     ]
@@ -237,19 +237,13 @@ def listar_checkout_hoje(db: Session = Depends(get_db), usuario = Depends(get_us
     return [
         {
             "nome": p.crianca.nome if p.crianca else "Sem nome",
-            "hora": formatar_hora_br(p.checkout) if p.checkout else ""
+            "hora": p.checkout if p.checkout else ""
         }
         for p in presencas
     ]
 
 from zoneinfo import ZoneInfo
 
-def formatar_hora_br(data):
-    if not data:
-        return ""
-
-    # 🔥 converte UTC → Brasil
-    return data.astimezone(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M")
 
 @app.post("/checkin/{crianca_id}")
 def checkin(
@@ -277,12 +271,6 @@ def checkin(
                     detail="Criança já está presente ou já fez check-in hoje"
                 )
 
-            for p in presenca:
-                if p.checkin:
-                    p.checkin = p.checkin.astimezone(ZoneInfo("America/Sao_Paulo"))
-                if p.checkout:
-                    p.checkout = p.checkout.astimezone(ZoneInfo("America/Sao_Paulo"))
-
             return presenca
 
         # 🟢 CHECK-IN MANUAL
@@ -307,12 +295,6 @@ def checkin(
                     status_code=400,
                     detail="Já existe check-in aberto para essa criança"
                 )
-
-            for p in presenca:
-                if p.checkin:
-                    p.checkin = p.checkin.astimezone(ZoneInfo("America/Sao_Paulo"))
-                if p.checkout:
-                    p.checkout = p.checkout.astimezone(ZoneInfo("America/Sao_Paulo"))
 
             return presenca
 
@@ -371,13 +353,7 @@ def checkout(
     else:
         presenca = crud.fazer_checkout(db, presenca.id)
 
-        if presenca.checkin:
-            presenca.checkin = presenca.checkin.astimezone(ZoneInfo("America/Sao_Paulo"))
-
-        if presenca.checkout:
-            presenca.checkout = presenca.checkout.astimezone(ZoneInfo("America/Sao_Paulo"))
-
-        return presenca
+    return presenca
 
 @app.post("/presenca-manual")
 def criar_presenca_manual(
@@ -387,7 +363,8 @@ def criar_presenca_manual(
 ):
 
     crianca_id = dados.get("crianca_id")
-    checkin = datetime.fromisoformat(checkin)
+    checkin_str = dados.get("checkin")
+    checkin = datetime.fromisoformat(checkin_str)
     checkin = checkin.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
     checkin = checkin.astimezone(timezone.utc)
 
@@ -408,7 +385,10 @@ def criar_presenca_manual(
             raise HTTPException(status_code=400, detail="Checkout menor que checkin")
 
     # 🔥 evita duplicidade no mesmo dia
-    inicio_dia = checkin.replace(hour=0, minute=0, second=0, microsecond=0)
+    inicio_dia = checkin.astimezone(ZoneInfo("America/Sao_Paulo"))\
+        .replace(hour=0, minute=0, second=0, microsecond=0)
+
+    inicio_dia = inicio_dia.astimezone(timezone.utc)
     fim_dia = inicio_dia + timedelta(days=1)
 
     existe = db.query(Presenca).filter(
@@ -1617,20 +1597,18 @@ def editar_presenca(
 
     # 🔥 CHECKIN
     if "checkin" in dados and dados["checkin"]:
-        presenca.checkin = datetime.fromisoformat(dados["checkin"])
+        dt = datetime.fromisoformat(dados["checkin"])
+        dt = dt.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+        presenca.checkin = dt.astimezone(timezone.utc)
 
     # 🔥 CHECKOUT (CORRIGIDO)
     if "checkout" in dados and dados["checkout"]:
-        presenca.checkout = datetime.fromisoformat(dados["checkout"])
+        dt = datetime.fromisoformat(dados["checkout"])
+        dt = dt.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+        presenca.checkout = dt.astimezone(timezone.utc)
 
     db.commit()
     db.refresh(presenca)
-
-    for p in presenca:
-        if p.checkin:
-            p.checkin = p.checkin.astimezone(ZoneInfo("America/Sao_Paulo"))
-        if p.checkout:
-            p.checkout = p.checkout.astimezone(ZoneInfo("America/Sao_Paulo"))
 
     return presenca
 

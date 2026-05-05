@@ -118,8 +118,6 @@ function renderLista(id, dados, tipo) {
     const nome = p.crianca?.nome || "Sem nome";
     const inicial = nome.charAt(0).toUpperCase();
 
-    let horario = "";
-
     if (tipo === "presente" || tipo === "checkin") {
       horario = p.checkin
         ? formatarHora(p.checkin)

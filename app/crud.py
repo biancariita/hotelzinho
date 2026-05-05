@@ -47,16 +47,20 @@ def fazer_checkin(db: Session, crianca_id: int, empresa_id: int):
         return None
 
     # 2️⃣ Verifica se já teve check-in hoje
-    hoje = datetime.now(timezone.utc).date()
+    inicio = datetime.now(ZoneInfo("America/Sao_Paulo"))\
+    .replace(hour=0, minute=0, second=0, microsecond=0)
+
+    inicio = inicio.astimezone(timezone.utc)
+    fim = inicio + timedelta(days=1)
 
     presenca_hoje = db.query(Presenca)\
-    .filter(
-        Presenca.crianca_id == crianca_id,
-        Presenca.empresa_id == empresa_id,
-        Presenca.checkin >= datetime.combine(hoje, datetime.min.time()),
-        Presenca.checkin <= datetime.combine(hoje, datetime.max.time())
-    )\
-    .first()
+        .filter(
+            Presenca.crianca_id == crianca_id,
+            Presenca.empresa_id == empresa_id,
+            Presenca.checkin >= inicio,
+            Presenca.checkin < fim
+        )\
+        .first()
 
     if presenca_hoje:
         return None
@@ -186,12 +190,6 @@ def fazer_checkout(db: Session, presenca_id: int):
         db.add(item)
 
     db.commit()
-
-    for p in presenca:
-        if p.checkin:
-            p.checkin = p.checkin.astimezone(ZoneInfo("America/Sao_Paulo"))
-        if p.checkout:
-            p.checkout = p.checkout.astimezone(ZoneInfo("America/Sao_Paulo"))
 
     return presenca
 
@@ -366,7 +364,7 @@ def deletar_crianca(db: Session, crianca_id: int, empresa_id: int):
     return True
 
 def relatorio_hoje(db: Session, empresa_id: int):
-    hoje = date.today()
+    hoje = datetime.now(ZoneInfo("America/Sao_Paulo")).date()
 
     presencas = db.query(Presenca)\
         .filter(Presenca.empresa_id == empresa_id)\
@@ -375,13 +373,13 @@ def relatorio_hoje(db: Session, empresa_id: int):
     resultado = []
 
     for p in presencas:
-        if p.checkin.date() == hoje:
+        if p.checkin.astimezone(ZoneInfo("America/Sao_Paulo")).date() == hoje:
             resultado.append(p)
 
     return resultado
 
 def resumo_diario(db: Session, empresa_id: int):
-    hoje = date.today()
+    hoje = datetime.now(ZoneInfo("America/Sao_Paulo")).date()
 
     presencas = db.query(Presenca)\
         .filter(Presenca.empresa_id == empresa_id)\
@@ -406,7 +404,7 @@ def resumo_diario(db: Session, empresa_id: int):
     }
 
 def tempo_total_hoje(db: Session, empresa_id: int):
-    hoje = date.today()
+    hoje = datetime.now(ZoneInfo("America/Sao_Paulo")).date()
 
     presencas = db.query(Presenca)\
         .filter(Presenca.empresa_id == empresa_id)\
