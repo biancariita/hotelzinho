@@ -431,20 +431,24 @@ def calcular_valor_extra(checkin, checkout, horas_contratadas, tolerancia_minuto
     if not checkout or not horas_contratadas:
         return 0
 
-    #  diferença total em horas
+    # 🔥 GARANTE QUE AMBOS ESTÃO EM UTC
+    if checkin.tzinfo is None:
+        checkin = checkin.replace(tzinfo=timezone.utc)
+
+    if checkout.tzinfo is None:
+        checkout = checkout.replace(tzinfo=timezone.utc)
+
+    # 🔥 diferença segura
     diferenca = checkout - checkin
     horas_total = diferenca.total_seconds() / 3600
 
-    #  aplica tolerância
     tolerancia_horas = (tolerancia_minutos or 0) / 60
 
     if horas_total <= (horas_contratadas + tolerancia_horas):
         return 0
 
-    #  calcula horas extras
     horas_extras = horas_total - horas_contratadas
 
-    #  valor por hora
     valor_hora_extra = 5
 
     valor_extra = horas_extras * valor_hora_extra
