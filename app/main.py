@@ -274,7 +274,12 @@ def checkin(
 
     # 🟢 MANUAL
     data_checkin = datetime.fromisoformat(data_checkin)
-    data_checkin = data_checkin.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+
+    # Só aplica BRT se vier sem timezone (naive)
+    if data_checkin.tzinfo is None:
+        data_checkin = data_checkin.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+
+    # Converte para UTC antes de salvar
     data_checkin = data_checkin.astimezone(timezone.utc)
 
     presenca = crud.fazer_checkin_manual(
@@ -1567,13 +1572,15 @@ def editar_presenca(
     # 🔥 CHECKIN
     if "checkin" in dados and dados["checkin"]:
         dt = datetime.fromisoformat(dados["checkin"])
-        dt = dt.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
         presenca.checkin = dt.astimezone(timezone.utc)
 
-    # 🔥 CHECKOUT (CORRIGIDO)
+    # 🔥 CHECKOUT — corrigido
     if "checkout" in dados and dados["checkout"]:
         dt = datetime.fromisoformat(dados["checkout"])
-        dt = dt.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
         presenca.checkout = dt.astimezone(timezone.utc)
 
     db.commit()
