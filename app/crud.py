@@ -9,7 +9,9 @@ import calendar
 from app.models import Mensalidade
 from sqlalchemy import func
 from app import models
+from datetime import datetime, timezone
 
+datetime.now(timezone.utc)
 
 import requests
 
@@ -62,7 +64,7 @@ def fazer_checkin(db: Session, crianca_id: int, empresa_id: int):
     nova_presenca = Presenca(
         crianca_id=crianca_id,
         empresa_id=empresa_id,
-        checkin=datetime.now()
+        checkin=datetime.now(timezone.utc)
     )
     inadimplente = db.query(models.Mensalidade)\
     .filter(
@@ -78,7 +80,7 @@ def fazer_checkin(db: Session, crianca_id: int, empresa_id: int):
     db.add(nova_presenca)
     db.commit()
     db.refresh(nova_presenca)
-    print("CHECKIN SALVO:", datetime.now())
+    print("CHECKIN SALVO:", datetime.now(timezone.utc))
 
     return nova_presenca
 
@@ -130,7 +132,7 @@ def fazer_checkout(db: Session, presenca_id: int):
     if not presenca:
         return None
 
-    presenca.checkout = datetime.now()
+    presenca.checkout = datetime.now(timezone.utc)
 
     crianca = presenca.crianca
 
@@ -143,7 +145,7 @@ def fazer_checkout(db: Session, presenca_id: int):
     )
 
     # 🔥 formato padrão (IMPORTANTE)
-    mes = datetime.now().strftime("%m/%Y")
+    mes = datetime.now(timezone.utc).strftime("%m/%Y")
 
     # 🔥 tenta buscar cobrança
     cobranca = db.query(models.Cobranca)\
@@ -193,7 +195,7 @@ def fechar_presencas_antigas(db):
         .all()
 
     for p in presencas:
-        p.checkout = datetime.now()
+        p.checkout = datetime.now(timezone.utc)
 
     db.commit()
 
@@ -409,7 +411,7 @@ def tempo_total_hoje(db: Session, empresa_id: int):
         if p.checkin.date() == hoje:
 
             # Se ainda não fez checkout, considera agora
-            checkout = p.checkout or datetime.now()
+            checkout = p.checkout or datetime.now(timezone.utc)
 
             minutos = int((checkout - p.checkin).total_seconds() / 60)
 
@@ -480,7 +482,7 @@ def marcar_como_pago(db: Session, mensalidade_id: int, empresa_id: int):
         return None
 
     mensalidade.pago = True
-    mensalidade.data_pagamento = datetime.now()
+    mensalidade.data_pagamento = datetime.now(timezone.utc)
 
     db.commit()
     db.refresh(mensalidade)
@@ -660,7 +662,7 @@ def marcar_cobranca_como_paga(db: Session, cobranca_id: int, empresa_id: int):
         return None
 
     cobranca.pago = True
-    cobranca.data_pagamento = datetime.now()  # 🔥 ESSENCIAL
+    cobranca.data_pagamento = datetime.now(timezone.utc)  # 🔥 ESSENCIAL
 
     db.commit()
     db.refresh(cobranca)

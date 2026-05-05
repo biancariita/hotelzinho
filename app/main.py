@@ -40,7 +40,9 @@ from fastapi import Body
 from app.models import Usuario, Empresa
 from app.security import gerar_hash_senha
 from sqlalchemy import func
+from datetime import datetime, timezone
 
+datetime.now(timezone.utc)
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -204,7 +206,7 @@ def nova_senha(data: dict = Body(...), db: Session = Depends(get_db)):
 
 @app.get("/checkin-hoje")
 def listar_checkin_hoje(db: Session = Depends(get_db), usuario = Depends(get_usuario_atual)):
-    hoje = datetime.now().date()
+    hoje = datetime.now(timezone.utc).date()
 
     presencas = db.query(models.Presenca)\
         .filter(
@@ -223,7 +225,7 @@ def listar_checkin_hoje(db: Session = Depends(get_db), usuario = Depends(get_usu
 
 @app.get("/checkout-hoje")
 def listar_checkout_hoje(db: Session = Depends(get_db), usuario = Depends(get_usuario_atual)):
-    hoje = datetime.now().date()
+    hoje = datetime.now(timezone.utc).date()
 
     presencas = db.query(models.Presenca)\
         .filter(
@@ -240,12 +242,14 @@ def listar_checkout_hoje(db: Session = Depends(get_db), usuario = Depends(get_us
         for p in presencas
     ]
 
+from zoneinfo import ZoneInfo
+
 def formatar_hora_br(data):
     if not data:
         return ""
 
-    # 🔥 força horário Brasil
-    return (data - timedelta(hours=3)).strftime("%H:%M")
+    # 🔥 converte UTC → Brasil
+    return data.astimezone(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M")
 
 @app.post("/checkin/{crianca_id}")
 def checkin(
@@ -278,6 +282,12 @@ def checkin(
         # 🟢 CHECK-IN MANUAL
         else:
             data_checkin = datetime.fromisoformat(data_checkin)
+
+            # assume que veio horário Brasil
+            data_checkin = data_checkin.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+
+            # converte pra UTC antes de salvar
+            data_checkin = data_checkin.astimezone(timezone.utc)
 
             presenca = crud.fazer_checkin_manual(
                 db,
@@ -688,11 +698,11 @@ def pagar_cobranca(
         raise HTTPException(status_code=404, detail="Cobrança não encontrada")
 
     cobranca.pago = True
-    cobranca.data_pagamento = datetime.now()
+    cobranca.data_pagamento = datetime.now(timezone.utc)
 
     db.commit()
 
-    mes = datetime.now().strftime("%m/%Y")
+    mes = datetime.now(timezone.utc).strftime("%m/%Y")
 
     novo_faturamento = models.Faturamento(
         descricao=f"Mensalidade - {cobranca.crianca.nome}",
@@ -1207,7 +1217,7 @@ async def webhook_asaas(
         if data_pagamento:
             cobranca.data_pagamento = datetime.strptime(data_pagamento, "%Y-%m-%d")
         else:
-            cobranca.data_pagamento = datetime.now()
+            cobranca.data_pagamento = datetime.now(timezone.utc)
 
         db.commit()
 
@@ -1593,7 +1603,7 @@ def criar_gasto(dados: dict, db: Session = Depends(get_db), usuario=Depends(get_
 
     from datetime import datetime
 
-    mes = datetime.now().strftime("%m/%Y")  # 🔥 AQUI TAMBÉM
+    mes = datetime.now(timezone.utc).strftime("%m/%Y")  # 🔥 AQUI TAMBÉM
 
     novo = models.Gasto(
         descricao=dados.get("descricao"),
@@ -1671,7 +1681,7 @@ def criar_faturamento(dados: dict, db: Session = Depends(get_db), usuario=Depend
 
     from datetime import datetime
 
-    mes = datetime.now().strftime("%m/%Y")  # 🔥 AQUI
+    mes = datetime.now(timezone.utc).strftime("%m/%Y")  # 🔥 AQUI
 
     novo = models.Faturamento(
         descricao=dados.get("descricao"),
@@ -1817,4 +1827,3 @@ def aniversarios_proximos(db: Session = Depends(get_db)):
 
     return resultado
 
-print(datetime.now())
