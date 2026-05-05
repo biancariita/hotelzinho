@@ -277,6 +277,12 @@ def checkin(
                     detail="Criança já está presente ou já fez check-in hoje"
                 )
 
+            for p in presenca:
+                if p.checkin:
+                    p.checkin = p.checkin.astimezone(ZoneInfo("America/Sao_Paulo"))
+                if p.checkout:
+                    p.checkout = p.checkout.astimezone(ZoneInfo("America/Sao_Paulo"))
+
             return presenca
 
         # 🟢 CHECK-IN MANUAL
@@ -301,6 +307,12 @@ def checkin(
                     status_code=400,
                     detail="Já existe check-in aberto para essa criança"
                 )
+
+            for p in presenca:
+                if p.checkin:
+                    p.checkin = p.checkin.astimezone(ZoneInfo("America/Sao_Paulo"))
+                if p.checkout:
+                    p.checkout = p.checkout.astimezone(ZoneInfo("America/Sao_Paulo"))
 
             return presenca
 
@@ -359,7 +371,13 @@ def checkout(
     else:
         presenca = crud.fazer_checkout(db, presenca.id)
 
-    return presenca
+        if presenca.checkin:
+            presenca.checkin = presenca.checkin.astimezone(ZoneInfo("America/Sao_Paulo"))
+
+        if presenca.checkout:
+            presenca.checkout = presenca.checkout.astimezone(ZoneInfo("America/Sao_Paulo"))
+
+        return presenca
 
 @app.post("/presenca-manual")
 def criar_presenca_manual(
@@ -1607,6 +1625,12 @@ def editar_presenca(
 
     db.commit()
     db.refresh(presenca)
+
+    for p in presenca:
+        if p.checkin:
+            p.checkin = p.checkin.astimezone(ZoneInfo("America/Sao_Paulo"))
+        if p.checkout:
+            p.checkout = p.checkout.astimezone(ZoneInfo("America/Sao_Paulo"))
 
     return presenca
 

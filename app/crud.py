@@ -10,6 +10,7 @@ from app.models import Mensalidade
 from sqlalchemy import func
 from app import models
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 datetime.now(timezone.utc)
 
@@ -185,6 +186,12 @@ def fazer_checkout(db: Session, presenca_id: int):
         db.add(item)
 
     db.commit()
+
+    for p in presenca:
+        if p.checkin:
+            p.checkin = p.checkin.astimezone(ZoneInfo("America/Sao_Paulo"))
+        if p.checkout:
+            p.checkout = p.checkout.astimezone(ZoneInfo("America/Sao_Paulo"))
 
     return presenca
 
