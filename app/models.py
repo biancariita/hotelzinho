@@ -8,7 +8,7 @@ from sqlalchemy import Float
 from sqlalchemy.orm import relationship
 import json
 from sqlalchemy import Text
-
+from datetime import datetime, timezone
 
 class Empresa(Base):
 
@@ -89,7 +89,7 @@ class Presenca(Base):
     crianca_id = Column(Integer, ForeignKey("criancas.id"))
     empresa_id = Column(Integer, ForeignKey("empresas.id"))
 
-    checkin = Column(DateTime, default=datetime.utcnow)
+    checkin = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     checkout = Column(DateTime, nullable=True)
 
     crianca = relationship("Crianca")

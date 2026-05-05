@@ -345,7 +345,13 @@ def checkout(
 
     # 🔥 MANUAL
     if data_checkout and data_checkout != "null":
-        presenca.checkout = datetime.fromisoformat(data_checkout)
+        data_checkout = datetime.fromisoformat(data_checkout)
+
+        # assume horário Brasil
+        data_checkout = data_checkout.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+
+        # converte pra UTC antes de salvar
+        presenca.checkout = data_checkout.astimezone(timezone.utc)
         db.commit()
         db.refresh(presenca)
 
@@ -363,8 +369,14 @@ def criar_presenca_manual(
 ):
 
     crianca_id = dados.get("crianca_id")
-    checkin = dados.get("checkin")
-    checkout = dados.get("checkout")
+    checkin = datetime.fromisoformat(checkin)
+    checkin = checkin.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+    checkin = checkin.astimezone(timezone.utc)
+
+    if checkout:
+        checkout = datetime.fromisoformat(checkout)
+        checkout = checkout.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+        checkout = checkout.astimezone(timezone.utc)
 
     if not crianca_id or not checkin:
         raise HTTPException(status_code=400, detail="Dados incompletos")

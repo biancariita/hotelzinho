@@ -46,7 +46,7 @@ def fazer_checkin(db: Session, crianca_id: int, empresa_id: int):
         return None
 
     # 2️⃣ Verifica se já teve check-in hoje
-    hoje = date.today()
+    hoje = datetime.now(timezone.utc).date()
 
     presenca_hoje = db.query(Presenca)\
     .filter(
