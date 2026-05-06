@@ -77,8 +77,36 @@ for (let mes in porMes){
 
         linha.innerHTML = `
             <td>${formatarDataBR(p.checkin)}</td>
-            <td>${p.checkout ? formatarDataBR(p.checkout) : "-"}</td>
-            <td>${calcularHoras(p.checkin, p.checkout)}</td>
+
+            <td>
+                ${p.checkout ? formatarDataBR(p.checkout) : "-"}
+            </td>
+
+            <td>
+                ${calcularHoras(p.checkin, p.checkout)}
+            </td>
+
+            <td>
+
+                <button
+                    class="btn-editar"
+                    onclick="abrirModalEditar(
+                        ${p.id},
+                        '${p.checkin || ""}',
+                        '${p.checkout || ""}'
+                    )"
+                >
+                    Editar
+                </button>
+
+                <button
+                    class="btn-excluir"
+                    onclick="excluirPresenca(${p.id})"
+                >
+                    Excluir
+                </button>
+
+            </td>
         `
 
         linha.classList.add("linha-mes")
@@ -189,3 +217,99 @@ document.addEventListener("click", function(e){
     }
 
 })
+
+function abrirModalEditar(id, checkin, checkout){
+
+    document.getElementById("modal-editar").style.display = "flex"
+
+    document.getElementById("presenca_id").value = id
+
+    document.getElementById("edit-checkin").value =
+        checkin ? checkin.slice(0,16) : ""
+
+    document.getElementById("edit-checkout").value =
+        checkout ? checkout.slice(0,16) : ""
+}
+
+function fecharModalEditar(){
+
+    document.getElementById("modal-editar").style.display = "none"
+}
+
+async function salvarEdicao(){
+
+    const id =
+        document.getElementById("presenca_id").value
+
+    const checkin =
+        document.getElementById("edit-checkin").value
+
+    const checkout =
+        document.getElementById("edit-checkout").value
+
+    const res = await fetch(
+        `/presencas/${id}`,
+        {
+            method:"PUT",
+
+            headers:{
+                "Content-Type":"application/json",
+                "Authorization":"Bearer "+token
+            },
+
+            body:JSON.stringify({
+                checkin,
+                checkout
+            })
+        }
+    )
+
+    if(res.ok){
+
+        alert("Presença atualizada ✅")
+
+        fecharModalEditar()
+
+        setTimeout(()=>{
+            location.reload()
+        },1000)
+
+    }else{
+
+        alert("Erro ao atualizar")
+    }
+}
+
+async function excluirPresenca(id){
+
+    const ok = confirm(
+        "Deseja realmente excluir essa presença?"
+    )
+
+    if(!ok) return
+
+    const res = await fetch(
+        `/presencas/${id}`,
+        {
+            method:"DELETE",
+
+            headers:{
+                "Authorization":"Bearer "+token
+            }
+        }
+    )
+
+    if(res.ok){
+
+        alert("Presença excluída ✅")
+
+        setTimeout(()=>{
+            location.reload()
+        },1000)
+
+    }else{
+
+        alert("Erro ao excluir")
+    }
+}
+

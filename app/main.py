@@ -1767,33 +1767,76 @@ def editar_presenca(
     db: Session = Depends(get_db),
     usuario = Depends(get_usuario_atual)
 ):
+
     presenca = db.query(Presenca)\
         .filter(
             Presenca.id == presenca_id,
             Presenca.empresa_id == usuario.empresa_id
-        ).first()
+        )\
+        .first()
 
     if not presenca:
-        raise HTTPException(status_code=404, detail="Presença não encontrada")
+        raise HTTPException(
+            status_code=404,
+            detail="Presença não encontrada"
+        )
 
-    # 🔥 CHECKIN
-    if "checkin" in dados and dados["checkin"]:
-        dt = datetime.fromisoformat(dados["checkin"])
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
-        presenca.checkin = dt.astimezone(timezone.utc)
+    checkin = datetime.fromisoformat(
+        dados["checkin"]
+    )
 
-    # 🔥 CHECKOUT — corrigido
-    if "checkout" in dados and dados["checkout"]:
-        dt = datetime.fromisoformat(dados["checkout"])
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
-        presenca.checkout = dt.astimezone(timezone.utc)
+    checkin = checkin.replace(
+        tzinfo=ZoneInfo("America/Sao_Paulo")
+    ).astimezone(timezone.utc)
+
+    presenca.checkin = checkin
+
+    if dados.get("checkout"):
+
+        checkout = datetime.fromisoformat(
+            dados["checkout"]
+        )
+
+        checkout = checkout.replace(
+            tzinfo=ZoneInfo("America/Sao_Paulo")
+        ).astimezone(timezone.utc)
+
+        presenca.checkout = checkout
+
+    else:
+        presenca.checkout = None
 
     db.commit()
+
     db.refresh(presenca)
 
     return presenca
+
+@app.delete("/presencas/{presenca_id}")
+def excluir_presenca(
+    presenca_id: int,
+    db: Session = Depends(get_db),
+    usuario = Depends(get_usuario_atual)
+):
+
+    presenca = db.query(Presenca)\
+        .filter(
+            Presenca.id == presenca_id,
+            Presenca.empresa_id == usuario.empresa_id
+        )\
+        .first()
+
+    if not presenca:
+        raise HTTPException(
+            status_code=404,
+            detail="Presença não encontrada"
+        )
+
+    db.delete(presenca)
+
+    db.commit()
+
+    return {"ok": True}
 
 @app.post("/gastos")
 def criar_gasto(dados: dict, db: Session = Depends(get_db), usuario=Depends(get_usuario_atual)):

@@ -749,3 +749,56 @@ white-space:nowrap;
         grid-template-columns: 1fr;
     }
 }
+
+.btn-editar,
+.btn-excluir{
+
+    border:none;
+    padding:8px 10px;
+    border-radius:10px;
+    cursor:pointer;
+    font-size:14px;
+    margin-right:5px;
+}
+
+.btn-editar{
+    background:#3b82f6;
+    color:white;
+}
+
+.btn-excluir{
+    background:#ef4444;
+    color:white;
+}
+
+/* MODAL */
+
+.modal{
+
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.4);
+
+    display:none;
+
+    justify-content:center;
+    align-items:center;
+
+    z-index:9999;
+}
+
+.modal-content{
+
+    background:white;
+    padding:25px;
+    border-radius:16px;
+    width:350px;
+}
+
+.modal-content input{
+
+    width:100%;
+    padding:10px;
+    margin-top:5px;
+    margin-bottom:15px;
+}
