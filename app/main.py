@@ -311,14 +311,17 @@ def checkout(
             Presenca.crianca_id == crianca_id,
             Presenca.empresa_id == usuario.empresa_id,
             Presenca.checkout == None
-        ).first()
+        )\
+        .first()
 
     if not presenca:
-        raise HTTPException(status_code=404, detail="Presença não encontrada")
+        raise HTTPException(
+            status_code=404,
+            detail="Presença não encontrada"
+        )
 
     data_checkout = dados.get("checkout")
 
-    # 🔵 MANUAL
     # 🔵 MANUAL
     if data_checkout and data_checkout != "null":
 
@@ -334,13 +337,62 @@ def checkout(
         db.commit()
         db.refresh(presenca)
 
-        # 🔥 cálculo financeiro
-        crud.fazer_checkout(db, presenca)
+        # 🔥 PROCESSA FINANCEIRO
+        crianca = presenca.crianca
 
-    return presenca
+        valor_extra = crud.calcular_valor_extra(
+            presenca.checkin,
+            presenca.checkout,
+            crianca.horas_contratadas,
+            crianca.tolerancia_minutos
+        )
+
+        if valor_extra > 0:
+
+            mes = presenca.checkin.strftime("%m/%Y")
+
+            cobranca = db.query(Cobranca)\
+                .filter(
+                    Cobranca.crianca_id == crianca.id,
+                    Cobranca.mes == mes
+                )\
+                .first()
+
+            if cobranca:
+
+                descricao = (
+                    f"Hora extra - "
+                    f"{presenca.checkin.strftime('%d/%m %H:%M')}"
+                )
+
+                existe = db.query(models.CobrancaItem)\
+                    .filter(
+                        models.CobrancaItem.cobranca_id == cobranca.id,
+                        models.CobrancaItem.descricao == descricao
+                    )\
+                    .first()
+
+                if not existe:
+
+                    cobranca.valor += valor_extra
+
+                    item = models.CobrancaItem(
+                        cobranca_id=cobranca.id,
+                        descricao=descricao,
+                        valor=valor_extra,
+                        data=presenca.checkin
+                    )
+
+                    db.add(item)
+                    db.commit()
+
+        return presenca
 
     # 🔵 AUTOMÁTICO
-    presenca = crud.fazer_checkout(db, presenca.id)
+    presenca = crud.fazer_checkout(
+        db,
+        presenca.id
+    )
 
     return presenca
 

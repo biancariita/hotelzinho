@@ -452,6 +452,84 @@ def tempo_total_hoje(db: Session, empresa_id: int):
 
     return list(resultado.values())
 
+def processar_financeiro_checkout(
+    db: Session,
+    presenca
+):
+
+    if not presenca.checkout:
+        return
+
+    crianca = db.query(models.Crianca)\
+        .filter(
+            models.Crianca.id == presenca.crianca_id
+        )\
+        .first()
+
+    if not crianca:
+        return
+
+    valor_extra = calcular_valor_extra(
+        presenca.checkin,
+        presenca.checkout,
+        crianca.horas_contratadas,
+        crianca.tolerancia_minutos
+    )
+
+    hoje_br = presenca.checkin.astimezone(
+        ZoneInfo("America/Sao_Paulo")
+    )
+
+    mes = hoje_br.strftime("%m/%Y")
+
+    cobranca = db.query(models.Cobranca)\
+        .filter(
+            models.Cobranca.crianca_id == crianca.id,
+            models.Cobranca.mes == mes
+        )\
+        .first()
+
+    if not cobranca:
+
+        cobranca = models.Cobranca(
+            crianca_id=crianca.id,
+            empresa_id=crianca.empresa_id,
+            valor=crianca.valor or 0,
+            mes=mes
+        )
+
+        db.add(cobranca)
+        db.flush()
+
+    if valor_extra > 0:
+
+        descricao = (
+            f"Hora extra - "
+            f"{presenca.checkin.strftime('%d/%m %H:%M')}"
+        )
+
+        existe = db.query(models.CobrancaItem)\
+            .filter(
+                models.CobrancaItem.cobranca_id == cobranca.id,
+                models.CobrancaItem.descricao == descricao
+            )\
+            .first()
+
+        if not existe:
+
+            cobranca.valor += valor_extra
+
+            item = models.CobrancaItem(
+                cobranca_id=cobranca.id,
+                descricao=descricao,
+                valor=valor_extra,
+                data=presenca.checkin
+            )
+
+            db.add(item)
+
+    db.commit()
+
 def calcular_valor_extra(checkin, checkout, horas_contratadas, tolerancia_minutos=0):
 
     if not checkout or not horas_contratadas:
