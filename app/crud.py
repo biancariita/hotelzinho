@@ -11,6 +11,7 @@ from sqlalchemy import func
 from app import models
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
+from calendar import monthrange
 
 datetime.now(timezone.utc)
 
@@ -147,11 +148,44 @@ def fazer_checkout(db: Session, presenca_id: int):
 
     # 🔥 SE NÃO EXISTIR → CRIA
     if not cobranca:
+        hoje_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+
+        dia_vencimento = crianca.dia_vencimento or 10
+
+        # 🔥 se já passou o vencimento → próximo mês
+        if hoje_br.day > dia_vencimento:
+
+            if hoje_br.month == 12:
+                mes = 1
+                ano = hoje_br.year + 1
+            else:
+                mes = hoje_br.month + 1
+                ano = hoje_br.year
+
+        else:
+            mes = hoje_br.month
+            ano = hoje_br.year
+
+        # 🔥 evita erro tipo dia 31 em fevereiro
+        ultimo_dia = monthrange(ano, mes)[1]
+        dia_final = min(dia_vencimento, ultimo_dia)
+
+        vencimento = datetime(
+            ano,
+            mes,
+            dia_final,
+            0,
+            0,
+            0,
+            tzinfo=ZoneInfo("America/Sao_Paulo")
+        )
+
         cobranca = models.Cobranca(
             crianca_id=crianca.id,
             empresa_id=crianca.empresa_id,
             valor=crianca.valor or 0,
-            mes=mes
+            mes=vencimento.strftime("%m/%Y"),
+            data_vencimento=vencimento.date()
         )
         db.add(cobranca)
         db.flush()  # 🔥 ESSENCIAL
@@ -160,7 +194,7 @@ def fazer_checkout(db: Session, presenca_id: int):
     ja_tem = db.query(models.CobrancaItem)\
     .filter(
         models.CobrancaItem.cobranca_id == cobranca.id,
-        models.CobrancaItem.descricao == f"Hora extra - {presenca.checkin.strftime('%d/%m')}"
+        models.CobrancaItem.descricao == f"Hora extra - {presenca.checkin.strftime('%d/%m %H:%M')}"
     )\
     .first()
 
@@ -169,7 +203,7 @@ def fazer_checkout(db: Session, presenca_id: int):
 
         item = models.CobrancaItem(
             cobranca_id=cobranca.id,
-            descricao=f"Hora extra - {presenca.checkin.strftime('%d/%m')}",
+            descricao=f"Hora extra - {presenca.checkin.strftime('%d/%m %H:%M')}",
             valor=valor_extra
         )
         db.add(item)
@@ -375,12 +409,14 @@ def resumo_diario(db: Session, empresa_id: int):
     ja_sairam = 0
 
     for p in presencas:
-        if p.checkin.date() == hoje:
+        if p.checkin.astimezone(
+            ZoneInfo("America/Sao_Paulo")
+        ).date() == hoje:
             total_hoje += 1
-            if p.checkout is None:
-                presentes_agora += 1
-            else:
-                ja_sairam += 1
+        if p.checkout is None:
+            presentes_agora += 1
+        else:
+            ja_sairam += 1
 
     return {
         "total_hoje": total_hoje,
@@ -618,17 +654,23 @@ def dashboard_financeiro(db: Session, empresa_id: int, mes: str):
         "total_recebido": total_recebido
     }
 
-def listar_cobrancas(db, empresa_id):
+def listar_cobrancas(db: Session, empresa_id: int):
+
+    mes = datetime.now(
+        ZoneInfo("America/Sao_Paulo")
+    ).strftime("%m/%Y")
+
     cobrancas = db.query(models.Cobranca)\
-    .filter(
-        models.Cobranca.empresa_id == empresa_id,
-        models.Cobranca.pago == False  # 🔥 só pendentes
-    )\
-    .all()
+        .filter(
+            models.Cobranca.empresa_id == empresa_id,
+            models.Cobranca.mes == mes
+        )\
+        .all()
 
     resultado = []
 
     for c in cobrancas:
+
         resultado.append({
             "id": c.id,
             "crianca_id": c.crianca_id,
@@ -637,8 +679,12 @@ def listar_cobrancas(db, empresa_id):
             "pago": c.pago,
             "data_pagamento": c.data_pagamento,
             "data_vencimento": c.data_vencimento,
-            "telefone": c.crianca.responsaveis[0].telefone if c.crianca and c.crianca.responsaveis else "",
-            "mes": c.mes
+            "telefone": (
+                c.crianca.responsaveis[0].telefone
+                if c.crianca
+                and c.crianca.responsaveis
+                else ""
+            )
         })
 
     return resultado

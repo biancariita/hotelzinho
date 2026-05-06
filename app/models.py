@@ -135,7 +135,7 @@ class Cobranca(Base):
     gateway_id = Column(String, nullable=True)
     link_pagamento = Column(String, nullable=True)
 
-    criado_em = Column(DateTime, default=datetime.utcnow)
+    criado_em = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     crianca = relationship("Crianca")
     motivo_desconto = Column(String, nullable=True)
@@ -149,7 +149,7 @@ class CobrancaItem(Base):
     cobranca_id = Column(Integer, ForeignKey("cobrancas.id"))
     descricao = Column(String)
     valor = Column(Float)
-    data = Column(DateTime, default=datetime.now)
+    data = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     cobranca = relationship("Cobranca", back_populates="itens")
 

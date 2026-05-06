@@ -163,42 +163,65 @@ function abrirComprovante(id){
     })
 }
 
-function baixarComprovante(id){
+async function baixarComprovanteWhats(id){
 
-    fetch(`/cobrancas/${id}/comprovante`,{
+    const res = await fetch(`/cobrancas/${id}/comprovante`,{
         headers:{
             "Authorization":"Bearer "+token
         }
     })
-    .then(res=>res.blob())
-    .then(blob=>{
 
-        const url = window.URL.createObjectURL(blob)
+    const blob = await res.blob()
 
-        const a = document.createElement("a")
-        a.href = url
-        a.download = "comprovante.pdf"
-        a.click()
-    })
+    const url = window.URL.createObjectURL(blob)
+
+    const a = document.createElement("a")
+
+    a.href = url
+    a.download = "comprovante.pdf"
+
+    document.body.appendChild(a)
+
+    a.click()
+
+    a.remove()
 }
 
-function enviarComprovanteWhats(id, telefone){
+async function enviarComprovanteWhats(id, telefone){
 
     if(!telefone){
         alert("Telefone não encontrado")
         return
     }
 
-    const mensagem = "Segue seu comprovante de pagamento 😊"
+    try{
 
-    const tel = telefone.replace(/\D/g,"")
+        // 🔥 baixa comprovante
+        await baixarComprovanteWhats(id)
 
-    const url = `https://wa.me/55${tel}?text=${encodeURIComponent(mensagem)}`
+        // 🔥 limpa telefone
+        const tel = telefone.replace(/\D/g,"")
 
-    window.open(url)
+        // 🔥 mensagem
+        const mensagem = encodeURIComponent(
+        `Olá!
 
-    // 📄 baixa junto
-    baixarComprovante(id)
+        Segue seu comprovante de pagamento do Hotelzinho Kids.
+
+        Obrigado pela preferência!`
+                )
+
+                // 🔥 abre whatsapp
+                window.open(
+                    `https://wa.me/55${tel}?text=${mensagem}`,
+                    "_blank"
+                )
+
+            }catch(err){
+
+                console.error(err)
+                alert("Erro ao gerar comprovante")
+            }
 }
 
 function formatarMoeda(valor){

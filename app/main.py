@@ -41,6 +41,7 @@ from app.models import Usuario, Empresa
 from app.security import gerar_hash_senha
 from sqlalchemy import func
 from datetime import datetime, timezone
+from calendar import monthrange
 
 datetime.now(timezone.utc)
 
@@ -319,14 +320,21 @@ def checkout(
 
     # 🔵 MANUAL
     if data_checkout and data_checkout != "null":
+
         dt = datetime.fromisoformat(data_checkout)
+
+    if dt.tzinfo is None:
         dt = dt.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+
         presenca.checkout = dt.astimezone(timezone.utc)
 
         db.commit()
         db.refresh(presenca)
 
-        return presenca
+        # 🔥 aplica cálculo financeiro igual automático
+        crud.fazer_checkout(db, presenca.id)
+
+    return presenca
 
     # 🔵 AUTOMÁTICO
     presenca = crud.fazer_checkout(db, presenca.id)
@@ -396,16 +404,18 @@ def criar_presenca_manual(
     # 🔥 CALCULO EXTRA (mantido)
     if checkout:
 
-        horas = (checkout - checkin).total_seconds() / 3600
-        horas = max(horas, 0)
+        crianca = db.query(Crianca)\
+            .filter(Crianca.id == crianca_id)\
+            .first()
 
-        crianca = db.query(Crianca).filter(Crianca.id == crianca_id).first()
-        horas_contratadas = crianca.horas_contratadas or 0
+        valor_extra = crud.calcular_valor_extra(
+            checkin,
+            checkout,
+            crianca.horas_contratadas,
+            crianca.tolerancia_minutos
+        )
 
-        if horas > horas_contratadas:
-
-            horas_extra = horas - horas_contratadas
-            valor_extra = horas_extra * 5
+        if valor_extra > 0:
 
             mes = checkin.strftime("%m/%Y")
 
@@ -415,11 +425,44 @@ def criar_presenca_manual(
             ).first()
 
             if not cobranca:
-                cobranca = Cobranca(
-                    crianca_id=crianca_id,
-                    empresa_id=usuario.empresa_id,
-                    mes=mes,
-                    valor=crianca.valor or 0
+                hoje_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+
+                dia_vencimento = crianca.dia_vencimento or 10
+
+                # 🔥 se já passou o vencimento → próximo mês
+                if hoje_br.day > dia_vencimento:
+
+                    if hoje_br.month == 12:
+                        mes = 1
+                        ano = hoje_br.year + 1
+                    else:
+                        mes = hoje_br.month + 1
+                        ano = hoje_br.year
+
+                else:
+                    mes = hoje_br.month
+                    ano = hoje_br.year
+
+                # 🔥 evita erro tipo dia 31 em fevereiro
+                ultimo_dia = monthrange(ano, mes)[1]
+                dia_final = min(dia_vencimento, ultimo_dia)
+
+                vencimento = datetime(
+                    ano,
+                    mes,
+                    dia_final,
+                    0,
+                    0,
+                    0,
+                    tzinfo=ZoneInfo("America/Sao_Paulo")
+                )
+
+                cobranca = models.Cobranca(
+                    crianca_id=crianca.id,
+                    empresa_id=crianca.empresa_id,
+                    valor=crianca.valor or 0,
+                    mes=vencimento.strftime("%m/%Y"),
+                    data_vencimento=vencimento.date()
                 )
                 db.add(cobranca)
                 db.flush()
@@ -775,36 +818,145 @@ def gerar_comprovante(
     endereco = empresa.endereco if empresa else ""
     telefone_empresa = empresa.telefone if empresa else ""
 
-    conteudo.append(Paragraph(f"<b>{nome_empresa}</b>", styles["Title"]))
-    conteudo.append(Spacer(1, 10))
-
-    if cnpj:
-        conteudo.append(Paragraph(f"CNPJ: {cnpj}", styles["Normal"]))
-
-    if endereco:
-        conteudo.append(Paragraph(f"Endereço: {endereco}", styles["Normal"]))
-
-    if telefone_empresa:
-        conteudo.append(Paragraph(f"Telefone: {telefone_empresa}", styles["Normal"]))
-
-        # 🔥 TÍTULO
-        conteudo.append(Paragraph("<b>Comprovante de Pagamento</b>", styles["Heading2"]))
-        conteudo.append(Spacer(1, 20))
+    from reportlab.platypus import Table, TableStyle
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER
+    from reportlab.lib.styles import ParagraphStyle
 
     # 🔥 DADOS DA COBRANÇA
-    nome = cobranca.crianca.nome
-    valor = f"R$ {cobranca.valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    data = cobranca.data_pagamento.strftime("%d/%m/%Y às %H:%M") if cobranca.data_pagamento else "-"
-    status = "Pago" if cobranca.pago else "Pendente"
+    nome = cobranca.crianca.nome if cobranca.crianca else "-"
 
-    conteudo.append(Paragraph(f"Criança: {nome}", styles["Normal"]))
-    conteudo.append(Paragraph(f"Valor: {valor}", styles["Normal"]))
-    conteudo.append(Paragraph(f"Data: {data}", styles["Normal"]))
-    conteudo.append(Paragraph(f"Status: {status}", styles["Normal"]))
+    valor = f"R$ {cobranca.valor:.2f}"\
+        .replace(".", "X")\
+        .replace(",", ".")\
+        .replace("X", ",")
+
+    data = (
+        cobranca.data_pagamento
+            .astimezone(ZoneInfo("America/Sao_Paulo"))
+            .strftime("%d/%m/%Y às %H:%M")
+        if cobranca.data_pagamento
+        else "-"
+    )
+
+    status = "✅ Pago" if cobranca.pago else "⏳ Pendente"
+
+    # 🔥 ESTILO CENTRALIZADO
+    titulo_style = ParagraphStyle(
+        "Titulo",
+        parent=styles["Title"],
+        alignment=TA_CENTER,
+        textColor=colors.HexColor("#4b4eff"),
+        fontSize=24,
+        leading=30
+    )
+
+    subtitulo_style = ParagraphStyle(
+        "SubTitulo",
+        parent=styles["Heading2"],
+        alignment=TA_CENTER,
+        textColor=colors.HexColor("#111827"),
+        fontSize=18
+    )
+
+    texto_style = ParagraphStyle(
+        "Texto",
+        parent=styles["BodyText"],
+        fontSize=12,
+        leading=20
+    )
+
+    # 🔥 CABEÇALHO
+    conteudo.append(
+        Paragraph(f"{nome_empresa}", titulo_style)
+    )
+
+    conteudo.append(Spacer(1, 15))
+
+    empresa_info = f"""
+    CNPJ: {cnpj}<br/>
+    Endereço: {endereco}<br/>
+    Telefone: {telefone_empresa}
+    """
+
+    conteudo.append(
+        Paragraph(empresa_info, texto_style)
+    )
+
+    conteudo.append(Spacer(1, 25))
+
+    # 🔥 LINHA
+    linha = Table(
+        [[""]],
+        colWidths=[500],
+        rowHeights=[2]
+    )
+
+    linha.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,-1), colors.HexColor("#e5e7eb"))
+    ]))
+
+    conteudo.append(linha)
+
+    conteudo.append(Spacer(1, 25))
+
+    # 🔥 TÍTULO
+    conteudo.append(
+        Paragraph("Comprovante de Pagamento", subtitulo_style)
+    )
 
     conteudo.append(Spacer(1, 30))
 
-    conteudo.append(Paragraph("Obrigado pela preferência!", styles["Normal"]))
+    # 🔥 DADOS
+    dados_tabela = [
+        ["Criança", nome],
+        ["Valor", valor],
+        ["Data", data],
+        ["Status", status]
+    ]
+
+    tabela = Table(
+        dados_tabela,
+        colWidths=[160, 300]
+    )
+
+    tabela.setStyle(TableStyle([
+
+        ("BACKGROUND", (0,0), (-1,-1), colors.HexColor("#f9fafb")),
+
+        ("BOX", (0,0), (-1,-1), 1, colors.HexColor("#d1d5db")),
+
+        ("LINEBELOW", (0,0), (-1,-2), 0.5, colors.HexColor("#e5e7eb")),
+
+        ("FONTNAME", (0,0), (0,-1), "Helvetica-Bold"),
+
+        ("TEXTCOLOR", (0,0), (0,-1), colors.HexColor("#374151")),
+
+        ("TEXTCOLOR", (1,1), (1,1), colors.HexColor("#16a34a")),
+
+        ("BOTTOMPADDING", (0,0), (-1,-1), 14),
+
+        ("TOPPADDING", (0,0), (-1,-1), 14),
+
+        ("BACKGROUND", (0,1), (-1,1), colors.HexColor("#ecfdf5")),
+
+        ("ROUNDEDCORNERS", [10,10,10,10]),
+
+    ]))
+
+    conteudo.append(tabela)
+
+    conteudo.append(Spacer(1, 40))
+
+    # 🔥 RODAPÉ
+    rodape = """
+    Obrigado pela preferência!<br/><br/>
+    Este comprovante foi gerado automaticamente pelo sistema.
+    """
+
+    conteudo.append(
+        Paragraph(rodape, texto_style)
+    )
 
     doc.build(conteudo)
     buffer.seek(0)
