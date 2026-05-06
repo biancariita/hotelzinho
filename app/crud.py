@@ -409,14 +409,21 @@ def resumo_diario(db: Session, empresa_id: int):
     ja_sairam = 0
 
     for p in presencas:
-        if p.checkin.astimezone(
+
+        # 🔥 converte para horário BR
+        data_checkin = p.checkin.astimezone(
             ZoneInfo("America/Sao_Paulo")
-        ).date() == hoje:
+        ).date()
+
+        # 🔥 somente hoje
+        if data_checkin == hoje:
+
             total_hoje += 1
-        if p.checkout is None:
-            presentes_agora += 1
-        else:
-            ja_sairam += 1
+
+            if p.checkout is None:
+                presentes_agora += 1
+            else:
+                ja_sairam += 1
 
     return {
         "total_hoje": total_hoje,
