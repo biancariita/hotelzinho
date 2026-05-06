@@ -319,20 +319,23 @@ def checkout(
     data_checkout = dados.get("checkout")
 
     # 🔵 MANUAL
+    # 🔵 MANUAL
     if data_checkout and data_checkout != "null":
 
         dt = datetime.fromisoformat(data_checkout)
 
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+        if dt.tzinfo is None:
+            dt = dt.replace(
+                tzinfo=ZoneInfo("America/Sao_Paulo")
+            )
 
         presenca.checkout = dt.astimezone(timezone.utc)
 
         db.commit()
         db.refresh(presenca)
 
-        # 🔥 aplica cálculo financeiro igual automático
-        crud.fazer_checkout(db, presenca.id)
+        # 🔥 cálculo financeiro
+        crud.fazer_checkout(db, presenca)
 
     return presenca
 
