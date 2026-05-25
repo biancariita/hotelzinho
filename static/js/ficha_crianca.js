@@ -190,16 +190,29 @@ function formatarDataBR(data){
     return `${dia}/${mes}/${ano} - ${hora}:${min}`
 }
 
-// 🔥 CALCULAR HORAS
 function calcularHoras(checkin, checkout){
+
     if (!checkout) return "-"
 
     const inicio = new Date(checkin)
     const fim = new Date(checkout)
 
-    const horas = (fim - inicio) / (1000 * 60 * 60)
+    // 🔥 diferença em minutos
+    const diffMinutos = Math.floor(
+        (fim - inicio) / (1000 * 60)
+    )
 
-    return horas.toFixed(1) + "h"
+    const horas = Math.floor(diffMinutos / 60)
+
+    const minutos = diffMinutos % 60
+
+    // 🔥 só horas
+    if(minutos === 0){
+        return `${horas} horas`
+    }
+
+    // 🔥 horas + minutos
+    return `${horas} horas ${minutos} minutos`
 }
 
 document.addEventListener("click", function(e){

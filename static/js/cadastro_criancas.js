@@ -117,7 +117,8 @@ document.getElementById("dia_vencimento").value = crianca.dia_vencimento || ""
 document.getElementById("plano").value = crianca.plano || ""
 document.getElementById("valor").value = crianca.valor || ""
 
-document.getElementById("horas_contratadas").value = crianca.horas_contratadas || ""
+document.getElementById("horas_contratadas").value =
+    formatarHoras(crianca.horas_contratadas)
 document.getElementById("tolerancia_minutos").value = crianca.tolerancia_minutos || 0
 
 // ✅ LIMPA TODOS OS RADIOS (IMPORTANTE)
@@ -238,7 +239,9 @@ const autorizacao_imagem = radioSelecionado
 
 const plano = document.getElementById("plano").value
 const valor = document.getElementById("valor").value
-
+const horas_contratadas = parseFloat(
+    document.getElementById("horas_contratadas").value
+)
 // 🔥 RESPONSÁVEIS
 const responsaveis = []
 
@@ -275,7 +278,8 @@ valor,
 dia_vencimento,
 autorizacao_imagem,
 responsaveis,
-horas_contratadas: parseFloat(document.getElementById("horas_contratadas").value) || null,
+horas_contratadas: converterHoras(
+    document.getElementById("horas_contratadas").value)|| null,
 tolerancia_minutos: parseInt(document.getElementById("tolerancia_minutos").value) || 0
 }
 
@@ -378,3 +382,35 @@ document.addEventListener("input", function(e){
 document.addEventListener("DOMContentLoaded", () => {
     carregarCriancas()
 })
+
+function converterHoras(valor){
+
+    if(!valor) return 0
+
+    valor = valor.trim()
+
+    // 🔥 formato 4:45
+    if(valor.includes(":")){
+
+        const partes = valor.split(":")
+
+        const horas = parseInt(partes[0]) || 0
+        const minutos = parseInt(partes[1]) || 0
+
+        return horas + (minutos / 60)
+    }
+
+    // 🔥 formato decimal normal
+    return parseFloat(valor) || 0
+}
+
+function formatarHoras(valor){
+
+    if(!valor) return ""
+
+    const horas = Math.floor(valor)
+
+    const minutos = Math.round((valor - horas) * 60)
+
+    return `${horas}:${minutos.toString().padStart(2,"0")}`
+}

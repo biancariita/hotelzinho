@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from app import models, schemas
 from app.security import gerar_hash_senha, verificar_senha
-from app.models import Crianca, Usuario
+from app.models import Cobranca, Crianca, Usuario
 from app.models import Presenca
 from datetime import datetime, date, timedelta
 from datetime import date
@@ -138,41 +138,53 @@ def fazer_checkout(db: Session, presenca_id: int):
     # 🔥 formato padrão (IMPORTANTE)
     mes = datetime.now(timezone.utc).strftime("%m/%Y")
 
-    # 🔥 tenta buscar cobrança
-    cobranca = db.query(models.Cobranca)\
+   # 🔥 pega última cobrança da criança
+    ultima_cobranca = db.query(Cobranca)\
         .filter(
-            models.Cobranca.crianca_id == crianca.id,
-            models.Cobranca.mes == mes
+            Cobranca.crianca_id == crianca.id
         )\
+        .order_by(Cobranca.id.desc())\
         .first()
 
-    # 🔥 SE NÃO EXISTIR → CRIA
+    cobranca = None
+
+    # 🔥 se última cobrança estiver pendente
+    if ultima_cobranca and not ultima_cobranca.pago:
+        cobranca = ultima_cobranca
+
+    # 🔥 se não existir → cria nova cobrança
     if not cobranca:
-        hoje_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+
+        hoje_br = datetime.now(
+            ZoneInfo("America/Sao_Paulo")
+        )
 
         dia_vencimento = crianca.dia_vencimento or 10
 
-        # 🔥 se já passou o vencimento → próximo mês
+        # 🔥 calcula próximo vencimento
         if hoje_br.day > dia_vencimento:
 
             if hoje_br.month == 12:
-                mes = 1
+                mes_num = 1
                 ano = hoje_br.year + 1
             else:
-                mes = hoje_br.month + 1
+                mes_num = hoje_br.month + 1
                 ano = hoje_br.year
 
         else:
-            mes = hoje_br.month
+            mes_num = hoje_br.month
             ano = hoje_br.year
 
-        # 🔥 evita erro tipo dia 31 em fevereiro
-        ultimo_dia = monthrange(ano, mes)[1]
-        dia_final = min(dia_vencimento, ultimo_dia)
+        ultimo_dia = monthrange(ano, mes_num)[1]
+
+        dia_final = min(
+            dia_vencimento,
+            ultimo_dia
+        )
 
         vencimento = datetime(
             ano,
-            mes,
+            mes_num,
             dia_final,
             0,
             0,
@@ -185,10 +197,13 @@ def fazer_checkout(db: Session, presenca_id: int):
             empresa_id=crianca.empresa_id,
             valor=crianca.valor or 0,
             mes=vencimento.strftime("%m/%Y"),
-            data_vencimento=vencimento.date()
+            data_vencimento=vencimento.date(),
+            pago=False
         )
+
         db.add(cobranca)
-        db.flush()  # 🔥 ESSENCIAL
+
+        db.flush()
 
     # 🔥 soma valor
     ja_tem = db.query(models.CobrancaItem)\
@@ -199,7 +214,7 @@ def fazer_checkout(db: Session, presenca_id: int):
     .first()
 
     if valor_extra > 0 and not ja_tem:
-        cobranca.valor += valor_extra
+        
 
         item = models.CobrancaItem(
             cobranca_id=cobranca.id,
@@ -441,7 +456,12 @@ def tempo_total_hoje(db: Session, empresa_id: int):
     resultado = {}
 
     for p in presencas:
-        if p.checkin.date() == hoje:
+        
+        data_checkin = p.checkin.astimezone(
+            ZoneInfo("America/Sao_Paulo")
+        ).date()
+
+        if data_checkin == hoje:
 
             # Se ainda não fez checkout, considera agora
             checkout = p.checkout or datetime.now(timezone.utc)
@@ -489,23 +509,69 @@ def processar_financeiro_checkout(
 
     mes = hoje_br.strftime("%m/%Y")
 
-    cobranca = db.query(models.Cobranca)\
+    # 🔥 pega última cobrança da criança
+    ultima_cobranca = db.query(Cobranca)\
         .filter(
-            models.Cobranca.crianca_id == crianca.id,
-            models.Cobranca.mes == mes
+            Cobranca.crianca_id == crianca.id
         )\
+        .order_by(Cobranca.id.desc())\
         .first()
 
+    cobranca = None
+
+    # 🔥 se última cobrança estiver pendente
+    if ultima_cobranca and not ultima_cobranca.pago:
+        cobranca = ultima_cobranca
+
     if not cobranca:
+
+        hoje_br = datetime.now(
+            ZoneInfo("America/Sao_Paulo")
+        )
+
+        dia_vencimento = crianca.dia_vencimento or 10
+
+        if hoje_br.day > dia_vencimento:
+
+            if hoje_br.month == 12:
+                mes_num = 1
+                ano = hoje_br.year + 1
+            else:
+                mes_num = hoje_br.month + 1
+                ano = hoje_br.year
+
+        else:
+            mes_num = hoje_br.month
+            ano = hoje_br.year
+
+        ultimo_dia = monthrange(ano, mes_num)[1]
+
+        dia_final = min(
+            dia_vencimento,
+            ultimo_dia
+        )
+
+        vencimento = datetime(
+            ano,
+            mes_num,
+            dia_final,
+            0,
+            0,
+            0,
+            tzinfo=ZoneInfo("America/Sao_Paulo")
+        )
 
         cobranca = models.Cobranca(
             crianca_id=crianca.id,
             empresa_id=crianca.empresa_id,
             valor=crianca.valor or 0,
-            mes=mes
+            mes=vencimento.strftime("%m/%Y"),
+            data_vencimento=vencimento.date(),
+            pago=False
         )
 
         db.add(cobranca)
+
         db.flush()
 
     if valor_extra > 0:
@@ -524,8 +590,6 @@ def processar_financeiro_checkout(
 
         if not existe:
 
-            cobranca.valor += valor_extra
-
             item = models.CobrancaItem(
                 cobranca_id=cobranca.id,
                 descricao=descricao,
@@ -537,32 +601,50 @@ def processar_financeiro_checkout(
 
     db.commit()
 
-def calcular_valor_extra(checkin, checkout, horas_contratadas, tolerancia_minutos=0):
+def calcular_valor_extra(
+    checkin,
+    checkout,
+    horas_contratadas,
+    tolerancia_minutos=0
+):
 
     if not checkout or not horas_contratadas:
         return 0
 
-    # 🔥 GARANTE QUE AMBOS ESTÃO EM UTC
+    # 🔥 timezone seguro
     if checkin.tzinfo is None:
         checkin = checkin.replace(tzinfo=timezone.utc)
 
     if checkout.tzinfo is None:
         checkout = checkout.replace(tzinfo=timezone.utc)
 
-    # 🔥 diferença segura
-    diferenca = checkout - checkin
-    horas_total = diferenca.total_seconds() / 3600
+    # 🔥 total em minutos
+    minutos_total = (
+        (checkout - checkin).total_seconds() / 60
+    )
 
-    tolerancia_horas = (tolerancia_minutos or 0) / 60
+    # 🔥 contratado em minutos
+    minutos_contratados = (
+        float(horas_contratadas) * 60
+    )
 
-    if horas_total <= (horas_contratadas + tolerancia_horas):
+    # 🔥 limite final
+    limite = (
+        minutos_contratados +
+        (tolerancia_minutos or 0)
+    )
+
+    # 🔥 dentro da tolerância
+    if minutos_total <= limite:
         return 0
 
-    horas_extras = horas_total - horas_contratadas
+    # 🔥 apenas excedente REAL
+    minutos_extras = minutos_total - limite
 
-    valor_hora_extra = 5
-
-    valor_extra = horas_extras * valor_hora_extra
+    # 🔥 proporcional
+    valor_extra = (
+        minutos_extras / 60
+    ) * 5
 
     return round(valor_extra, 2)
 
@@ -741,29 +823,75 @@ def dashboard_financeiro(db: Session, empresa_id: int, mes: str):
 
 def listar_cobrancas(db: Session, empresa_id: int):
 
-    mes = datetime.now(
+    hoje = datetime.now(
         ZoneInfo("America/Sao_Paulo")
-    ).strftime("%m/%Y")
+    )
+
+    limite_pago = hoje - timedelta(days=10)
 
     cobrancas = db.query(models.Cobranca)\
         .filter(
-            models.Cobranca.empresa_id == empresa_id,
-            models.Cobranca.mes == mes
+            models.Cobranca.empresa_id == empresa_id
         )\
+        .order_by(models.Cobranca.id.desc())\
         .all()
 
     resultado = []
 
     for c in cobrancas:
 
+        # 🔥 cobrança paga antiga → ocultar
+        if c.pago and c.data_pagamento:
+
+            data_pagamento = c.data_pagamento
+
+            # 🔥 se veio sem timezone
+            if data_pagamento.tzinfo is None:
+                data_pagamento = data_pagamento.replace(
+                    tzinfo=timezone.utc
+                )
+
+            # 🔥 oculta após 10 dias
+            if data_pagamento < limite_pago:
+                continue
+
+       # 🔥 soma extras
+        extras = sum(
+            (item.valor or 0)
+            for item in c.itens
+        )
+
+        # 🔥 total final
+        valor_total = (
+            (c.valor or 0)
+            + extras
+        )
+
         resultado.append({
             "id": c.id,
+
             "crianca_id": c.crianca_id,
-            "crianca_nome": c.crianca.nome if c.crianca else "",
-            "valor": c.valor,
+
+            "crianca_nome": (
+                c.crianca.nome
+                if c.crianca else ""
+            ),
+
+            # 🔥 total exibido
+            "valor": round(valor_total, 2),
+
+            # 🔥 mensalidade fixa
+            "mensalidade": c.valor or 0,
+
+            # 🔥 extras separados
+            "extras": round(extras, 2),
+
             "pago": c.pago,
+
             "data_pagamento": c.data_pagamento,
+
             "data_vencimento": c.data_vencimento,
+
             "telefone": (
                 c.crianca.responsaveis[0].telefone
                 if c.crianca
