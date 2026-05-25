@@ -239,9 +239,33 @@ const autorizacao_imagem = radioSelecionado
 
 const plano = document.getElementById("plano").value
 const valor = document.getElementById("valor").value
-const horas_contratadas = parseFloat(
+const horasInput =
     document.getElementById("horas_contratadas").value
-)
+
+let horas_contratadas = 0
+
+if(horasInput.includes(":")){
+
+    const partes = horasInput.split(":")
+
+    const horas = parseInt(partes[0]) || 0
+    const minutos = parseInt(partes[1]) || 0
+
+    horas_contratadas = horas + (minutos / 60)
+
+}else{
+
+    horas_contratadas = parseFloat(horasInput || 0)
+}
+
+const primeira_mensalidade_paga =
+    document.getElementById(
+        "primeira_mensalidade_paga"
+    ).value === "true"
+
+const mes_pago =
+    document.getElementById("mes_pago").value
+
 // 🔥 RESPONSÁVEIS
 const responsaveis = []
 
@@ -278,8 +302,9 @@ valor,
 dia_vencimento,
 autorizacao_imagem,
 responsaveis,
-horas_contratadas: converterHoras(
-    document.getElementById("horas_contratadas").value)|| null,
+primeira_mensalidade_paga,
+mes_pago,
+horas_contratadas,
 tolerancia_minutos: parseInt(document.getElementById("tolerancia_minutos").value) || 0
 }
 

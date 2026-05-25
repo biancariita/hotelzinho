@@ -97,13 +97,25 @@ onclick="verHistorico(${c.crianca_id}, \`${c.crianca_nome}\`)">
 </td>
 
 <td>
-    <input 
-        type="text" 
-        value="${formatarMoeda(c.valor)}"
+
+    <input
+        type="text"
+        class="input-valor"
+
+        value="${Number(c.total || c.valor).toFixed(2)}"
+
         id="valor-${c.id}"
+
         ${c.pago ? "disabled" : ""}
-        ${!c.pago ? `onblur="salvarValorFormatado(${c.id})"` : ""}
+
+        ${!c.pago
+            ? `
+                onblur="salvarValorFormatado(${c.id})"
+            `
+            : ""
+        }
     >
+
 </td>
 
 <td>${status}</td>
@@ -233,28 +245,41 @@ function formatarMoeda(valor){
 
 function salvarValorFormatado(id){
 
-    let input = document.getElementById(`valor-${id}`).value
+    let input =
+        document.getElementById(`valor-${id}`)
 
-    // remove R$, pontos e troca vírgula por ponto
-    let valorLimpo = input
-        .replace("R$", "")
-        .replace(/\./g, "")
-        .replace(",", ".")
-        .trim()
+    let valor = input.value
 
-    fetch(`/cobrancas/${id}/valor`,{
+    // 🔥 aceita vírgula
+    valor = valor.replace(",", ".")
+
+    valor = parseFloat(valor)
+
+    if(isNaN(valor)){
+
+        alert("Valor inválido")
+
+        carregarCobrancas()
+
+        return
+    }
+
+    // 🔥 mantém formato simples
+    input.value = valor.toFixed(2)
+
+    fetch(`/cobrancas/${id}/valor`, {
+
         method:"PUT",
+
         headers:{
             "Content-Type":"application/json",
             "Authorization":"Bearer "+token
         },
+
         body: JSON.stringify({
-            valor: parseFloat(valorLimpo)
+            valor
         })
-    })
-    .then(res=>res.json())
-    .then(()=>{
-        carregarCobrancas()
+
     })
 }
 
@@ -652,14 +677,44 @@ async function abrirHistorico(tipo) {
 
 function desconto(id){
 
-let valor = document.getElementById(`valor-${id}`).value
+    let input =
+        document.getElementById(`valor-${id}`)
 
-let d = prompt("Valor do desconto:")
+    let valorAtual =
+        parseFloat(
+            input.value.replace(",", ".")
+        )
 
-valor = valor - d
+    if(isNaN(valorAtual)){
+        alert("Valor inválido")
+        return
+    }
 
-document.getElementById(`valor-${id}`).value = valor
+    let desconto = prompt(
+        "Valor do desconto:"
+    )
 
+    if(!desconto) return
+
+    desconto = parseFloat(
+        desconto.replace(",", ".")
+    )
+
+    if(isNaN(desconto)){
+        alert("Desconto inválido")
+        return
+    }
+
+    let novoValor =
+        valorAtual - desconto
+
+    if(novoValor < 0){
+        novoValor = 0
+    }
+
+    input.value = novoValor.toFixed(2)
+
+    salvarValorFormatado(id)
 }
 
 function enviar(id){

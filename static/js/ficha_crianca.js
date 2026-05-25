@@ -127,15 +127,43 @@ data.cobrancas.forEach(c=>{
 const linha = document.createElement("tr")
 
 linha.innerHTML = `
-<td>R$ ${Number(c.valor).toFixed(2)}</td>
 
 <td>
-    ${c.pago 
-        ? `<span style="color:#10b981;">Pago</span><br>
-           <small>${formatarDataBR(c.data_pagamento)}</small>`
-        : `<span style="color:#ef4444;">Pendente</span><br>
-           <small>-</small>`
+    R$ ${Number(c.valor).toFixed(2)}
+</td>
+
+<td>
+
+    ${
+        c.pago
+
+        ? `
+            <span style="color:#10b981;">
+                Pago
+            </span>
+
+            <br>
+
+            <small>
+                ${formatarDataBR(c.data_pagamento)}
+            </small>
+
+            <br><br>
+
+            <button
+                onclick="abrirComprovante(${c.id})"
+            >
+                📄 Comprovante
+            </button>
+        `
+
+        : `
+            <span style="color:#ef4444;">
+                Pendente
+            </span>
+        `
     }
+
 </td>
 `
 
@@ -326,3 +354,48 @@ async function excluirPresenca(id){
     }
 }
 
+function abrirComprovante(id){
+
+    const token =
+        localStorage.getItem("token")
+
+    fetch(
+
+        `/cobrancas/${id}/comprovante`,
+
+        {
+            headers:{
+                Authorization:
+                    `Bearer ${token}`
+            }
+        }
+
+    )
+
+    .then(response => {
+
+        if(!response.ok){
+
+            throw new Error(
+                "Erro ao gerar comprovante"
+            )
+        }
+
+        return response.blob()
+    })
+
+    .then(blob => {
+
+        const url =
+            window.URL.createObjectURL(blob)
+
+        window.open(url, "_blank")
+    })
+
+    .catch(err => {
+
+        console.error(err)
+
+        alert("Erro ao abrir comprovante")
+    })
+}

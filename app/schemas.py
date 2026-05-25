@@ -86,6 +86,8 @@ class CriancaCreate(BaseModel):
     plano: str | None = None
     valor: float | None = None
     horas_contratadas: float | None = None
+    primeira_mensalidade_paga: bool = False
+    mes_pago: str | None = None
     tolerancia_minutos: int = 0
 
     valor_sabado: float | None = None

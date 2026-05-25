@@ -374,8 +374,6 @@ def checkout(
 
                 if not existe:
 
-                    cobranca.valor += valor_extra
-
                     item = models.CobrancaItem(
                         cobranca_id=cobranca.id,
                         descricao=descricao,
@@ -521,8 +519,6 @@ def criar_presenca_manual(
                 )
                 db.add(cobranca)
                 db.flush()
-
-            cobranca.valor += valor_extra
 
             item = models.CobrancaItem(
                 cobranca_id=cobranca.id,
@@ -881,7 +877,20 @@ def gerar_comprovante(
     # 🔥 DADOS DA COBRANÇA
     nome = cobranca.crianca.nome if cobranca.crianca else "-"
 
-    valor = f"R$ {cobranca.valor:.2f}"\
+    extras = db.query(models.CobrancaItem)\
+    .filter(
+        models.CobrancaItem.cobranca_id == cobranca.id
+    )\
+    .all()
+
+    valor_extras = sum(
+        (e.valor or 0)
+        for e in extras
+    )
+
+    valor_total = cobranca.valor or 0
+
+    valor = f"R$ {valor_total:.2f}"\
         .replace(".", "X")\
         .replace(",", ".")\
         .replace("X", ",")
@@ -1002,7 +1011,58 @@ def gerar_comprovante(
     conteudo.append(tabela)
 
     conteudo.append(Spacer(1, 40))
+    # 🔥 EXTRAS
+    if extras:
 
+        conteudo.append(Spacer(1, 25))
+
+        conteudo.append(
+            Paragraph(
+                "Horas Extras",
+                subtitulo_style
+            )
+        )
+
+        conteudo.append(Spacer(1, 15))
+
+        dados_extras = [
+            ["Descrição", "Valor"]
+        ]
+
+        for e in extras:
+
+            dados_extras.append([
+                e.descricao,
+                f"R$ {e.valor:.2f}"
+            ])
+
+        tabela_extras = Table(
+            dados_extras,
+            colWidths=[350, 110]
+        )
+
+        tabela_extras.setStyle(TableStyle([
+
+            ("BACKGROUND", (0,0), (-1,0),
+                colors.HexColor("#4b4eff")),
+
+            ("TEXTCOLOR", (0,0), (-1,0),
+                colors.white),
+
+            ("FONTNAME", (0,0), (-1,0),
+                "Helvetica-Bold"),
+
+            ("BACKGROUND", (0,1), (-1,-1),
+                colors.HexColor("#f9fafb")),
+
+            ("GRID", (0,0), (-1,-1),
+                1, colors.HexColor("#d1d5db")),
+
+            ("BOTTOMPADDING", (0,0), (-1,-1), 10),
+            ("TOPPADDING", (0,0), (-1,-1), 10),
+        ]))
+
+        conteudo.append(tabela_extras)
     # 🔥 RODAPÉ
     rodape = """
     Obrigado pela preferência!<br/><br/>
@@ -1517,7 +1577,16 @@ def dados_ficha_crianca(
     },
 
     "presencas": presencas,
-    "cobrancas": cobrancas
+    "cobrancas":[
+        {
+            "id": c.id,
+            "valor": c.valor,
+            "pago": c.pago,
+            "data_pagamento": c.data_pagamento,
+            "mes": c.mes
+        }
+        for c in cobrancas
+    ]
 
     }
 @app.put("/reativar-crianca/{crianca_id}")
