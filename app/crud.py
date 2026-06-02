@@ -127,7 +127,7 @@ def fazer_checkout(db: Session, presenca_id: int):
 
     crianca = presenca.crianca
 
-    # 🔥 cálculo extra
+    #cálculo extra
     valor_extra = calcular_valor_extra(
         presenca.checkin,
         presenca.checkout,
