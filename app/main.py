@@ -1806,17 +1806,27 @@ def historico_crianca(
             }
 
         horas = 0
+        tempo_extra = 0
 
         if p.checkout:
-            horas = (p.checkout - p.checkin).total_seconds() / 3600
-            if horas < 0:
-                horas = 0
+
+            horas = (
+                p.checkout - p.checkin
+            ).total_seconds() / 3600
+
+            horas_contratadas = p.crianca.horas_contratadas or 0
+            tolerancia = (p.crianca.tolerancia_minutos or 0) / 60
+
+            limite_tolerancia = horas_contratadas + tolerancia
+
+            if horas > limite_tolerancia:
+                tempo_extra = horas - horas_contratadas
 
         resultado[mes]["presencas"].append({
             "data": p.checkin,
-            "horas": round(horas, 2)
+            "horas": round(horas, 2),
+            "tempo_extra": round(tempo_extra, 2)
         })
-
     return resultado
 
 def calcular_valor(c, empresa, checkin, checkout):
@@ -1875,6 +1885,37 @@ def editar_presenca(
     else:
         presenca.checkout = None
 
+    # 🔥 BLOCO NOVO AQUI
+
+    if presenca.checkout:
+
+        crianca = presenca.crianca
+
+        novo_valor = crud.calcular_valor_extra(
+            presenca.checkin,
+            presenca.checkout,
+            crianca.horas_contratadas,
+            crianca.tolerancia_minutos
+        )
+
+        descricao = (
+            f"Hora extra - "
+            f"{presenca.checkin.strftime('%d/%m %H:%M')}"
+        )
+
+        item = db.query(models.CobrancaItem)\
+            .filter(
+                models.CobrancaItem.descricao == descricao
+            )\
+            .first()
+
+        if item:
+
+            if novo_valor <= 0:
+                db.delete(item)
+            else:
+                item.valor = novo_valor
+
     db.commit()
 
     db.refresh(presenca)
@@ -1900,6 +1941,17 @@ def excluir_presenca(
             status_code=404,
             detail="Presença não encontrada"
         )
+
+    descricao = (
+        f"Hora extra - "
+        f"{presenca.checkin.strftime('%d/%m %H:%M')}"
+    )
+
+    db.query(models.CobrancaItem)\
+        .filter(
+            models.CobrancaItem.descricao == descricao
+        )\
+        .delete()
 
     db.delete(presenca)
 

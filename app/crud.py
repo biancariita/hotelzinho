@@ -126,7 +126,7 @@ def fazer_checkout(db: Session, presenca_id: int):
     presenca.checkout = datetime.now(timezone.utc)
 
     crianca = presenca.crianca
-
+    
     #cálculo extra
     valor_extra = calcular_valor_extra(
         presenca.checkin,
@@ -148,14 +148,50 @@ def fazer_checkout(db: Session, presenca_id: int):
 
     cobranca = None
 
-   # 🔥 usa cobrança pendente existente
-    if ultima_cobranca and not ultima_cobranca.pago:
+    # 🔥 PRIMEIRA COBRANÇA DA CRIANÇA
+    if not ultima_cobranca:
+
+        hoje_br = datetime.now(
+            ZoneInfo("America/Sao_Paulo")
+        )
+
+        dia_vencimento = crianca.dia_vencimento or 10
+
+        vencimento = datetime(
+            hoje_br.year,
+            hoje_br.month,
+            min(
+                dia_vencimento,
+                monthrange(
+                    hoje_br.year,
+                    hoje_br.month
+                )[1]
+            ),
+            0,
+            0,
+            0
+        )
+
+        cobranca = models.Cobranca(
+            crianca_id=crianca.id,
+            empresa_id=crianca.empresa_id,
+            valor=crianca.valor or 0,
+            mes=hoje_br.strftime("%m/%Y"),
+            data_vencimento=vencimento.date(),
+            pago=False
+        )
+
+        db.add(cobranca)
+        db.flush()
+
+    # 🔥 usa cobrança pendente existente
+    elif not ultima_cobranca.pago:
 
         cobranca = ultima_cobranca
 
     # 🔥 última cobrança já paga
     # cria nova mensalidade automaticamente
-    elif ultima_cobranca and ultima_cobranca.pago:
+    else:
 
         hoje_br = datetime.now(
             ZoneInfo("America/Sao_Paulo")
@@ -209,17 +245,18 @@ def fazer_checkout(db: Session, presenca_id: int):
         )
 
         db.add(cobranca)
-
         db.flush()
 
-    # 🔥 soma valor
-    ja_tem = db.query(models.CobrancaItem)\
-    .filter(
-        models.CobrancaItem.cobranca_id == cobranca.id,
-        models.CobrancaItem.descricao == f"Hora extra - {presenca.checkin.strftime('%d/%m %H:%M')}"
-    )\
-    .first()
+    if not cobranca:
+        db.commit()
+        return presenca
 
+    ja_tem = db.query(models.CobrancaItem)\
+        .filter(
+            models.CobrancaItem.cobranca_id == cobranca.id,
+            models.CobrancaItem.descricao == f"Hora extra - {presenca.checkin.strftime('%d/%m %H:%M')}"
+        )\
+        .first()
     if valor_extra > 0 and not ja_tem:
         
 
@@ -389,12 +426,10 @@ def criar_crianca(db: Session, crianca: schemas.CriancaCreate, empresa_id: int):
 
     return db_crianca
 
-
-
-
 def listar_criancas(db: Session, empresa_id: int):
     return db.query(models.Crianca)\
         .filter(models.Crianca.empresa_id == empresa_id)\
+        .order_by(models.Crianca.nome)\
         .all()
 
 def buscar_crianca(db: Session, crianca_id: int, empresa_id: int):
@@ -448,7 +483,46 @@ def atualizar_crianca(
             empresa_id=empresa_id
         )
         db.add(novo_resp)
+    # 🔥 recalcula horas extras antigas
 
+    presencas = db.query(models.Presenca)\
+        .filter(
+            models.Presenca.crianca_id == crianca.id,
+            models.Presenca.checkout != None
+        )\
+        .all()
+
+    for p in presencas:
+
+        novo_valor = calcular_valor_extra(
+            p.checkin,
+            p.checkout,
+            crianca.horas_contratadas,
+            crianca.tolerancia_minutos
+        )
+
+        descricao = (
+            f"Hora extra - "
+            f"{p.checkin.strftime('%d/%m %H:%M')}"
+        )
+
+        item = db.query(models.CobrancaItem)\
+            .filter(
+                models.CobrancaItem.descricao == descricao
+            )\
+            .first()
+
+        if item:
+
+        # 🔥 NÃO TEM MAIS EXTRA
+            if novo_valor <= 0:
+
+                db.delete(item)
+
+            # 🔥 TEM EXTRA
+            else:
+
+                item.valor = novo_valor
     db.commit()
     db.refresh(crianca)
 
@@ -709,29 +783,41 @@ def calcular_valor_extra(
     if not checkout:
         return 0
 
-    # 🔥 tempo total em minutos
+    if checkin.tzinfo is None:
+        checkin = checkin.replace(tzinfo=timezone.utc)
+
+    if checkout.tzinfo is None:
+        checkout = checkout.replace(tzinfo=timezone.utc)
+
     minutos_total = (
-        checkout - checkin
+    checkout - checkin
     ).total_seconds() / 60
+
+    print(
+        "DEBUG EXTRA:",
+        "horas_contratadas=", horas_contratadas,
+        "tolerancia=", tolerancia_minutos,
+        "minutos_total=", minutos_total
+    )
 
     # 🔥 horas contratadas → minutos
     minutos_contratados = (
         horas_contratadas or 0
     ) * 60
 
-    # 🔥 adiciona tolerância
-    limite_total = (
+    # 🔥 tolerância apenas para liberar ou cobrar
+    limite_tolerancia = (
         minutos_contratados
         + (tolerancia_minutos or 0)
     )
 
-    # 🔥 não passou
-    if minutos_total <= limite_total:
+    # 🔥 ficou dentro da tolerância
+    if minutos_total <= limite_tolerancia:
         return 0
 
-    # 🔥 minutos excedentes
+    # 🔥 passou da tolerância
     minutos_extra = (
-        minutos_total - limite_total
+        minutos_total - minutos_contratados
     )
 
     # 🔥 R$5 por hora proporcional
@@ -739,6 +825,12 @@ def calcular_valor_extra(
 
     valor_extra = (
         minutos_extra * valor_por_minuto
+    )
+
+    print(
+        "DEBUG RESULTADO:",
+        "minutos_extra=", minutos_extra,
+        "valor_extra=", valor_extra
     )
 
     return round(valor_extra, 2)
@@ -959,12 +1051,8 @@ def listar_cobrancas(db: Session, empresa_id: int):
                 c.crianca.nome
                 if c.crianca else "-",
 
-            # 🔥 mensalidade base
+            # 🔥 valor final com extras
             "valor":
-                c.valor,
-
-            # 🔥 total com extras
-            "total":
                 total,
 
             "pago":

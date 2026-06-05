@@ -15,10 +15,19 @@ headers:{ Authorization:"Bearer "+token }
 
     console.log("CRIANCAS:", dados)
 
-const tbody=document.querySelector("#tabelaCriancas tbody")
-tbody.innerHTML=""
+    dados.sort((a, b) =>
+        a.nome.localeCompare(
+            b.nome,
+            "pt-BR",
+            { sensitivity: "base" }
+        )
+    )
 
-dados.forEach(c=>{
+    const tbody=document.querySelector("#tabelaCriancas tbody")
+
+    tbody.innerHTML=""
+
+    dados.forEach(c=>{
 
 const resp = (c.responsaveis && c.responsaveis.length > 0) ? c.responsaveis[0] : {}
 

@@ -26,11 +26,19 @@ Authorization:"Bearer "+token
 .then(res=>res.json())
 .then(dados=>{
 
-const tbody=document.querySelector("#tabelaCriancas tbody")
+    dados.sort((a, b) =>
+        a.nome.localeCompare(
+            b.nome,
+            "pt-BR",
+            { sensitivity: "base" }
+        )
+    )
 
-tbody.innerHTML=""
+    const tbody=document.querySelector("#tabelaCriancas tbody")
 
-dados.forEach(c=>{
+    tbody.innerHTML=""
+
+    dados.forEach(c=>{
 
 const resp=c.responsaveis?.[0]?.nome || "-"
 

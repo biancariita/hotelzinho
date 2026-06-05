@@ -41,6 +41,19 @@ function formatarDataHora(data){
     return `${textoData} • ${hora}`
 }
 
+function formatarHoras(valor){
+
+    if(valor == null) return "0:00"
+
+    const horas = Math.floor(valor)
+
+    const minutos = Math.round(
+        (valor - horas) * 60
+    )
+
+    return `${horas}:${minutos.toString().padStart(2,"0")}`
+}
+
 function carregarCobrancas(){
 
 fetch("/cobrancas",{
@@ -397,42 +410,57 @@ async function verHistorico(id, nome){
         </div>
         `
 
-        // 🔥 EXTRAS
-        if (dados[mes].extras && dados[mes].extras.length){
+        // 🔥 PRESENÇAS
+        if (dados[mes].presencas && dados[mes].presencas.length){
 
-            dados[mes].extras.forEach(e => {
+            dados[mes].presencas.forEach(p => {
 
-                // 🔥 FORMATA DATA
                 let dataFormatada = "-"
-                if(e.data){
-                    const d = new Date(e.data)
-                    dataFormatada = d.toLocaleDateString("pt-BR")
-                }
 
-                // 🔥 CALCULA TEMPO (horas → HH:MM)
-                let tempo = "-"
-                if(e.valor){
-                    const horas = e.valor / 5 // R$5 por hora
-                    const h = Math.floor(horas)
-                    const m = Math.round((horas - h) * 60)
-                    tempo = `${h}:${m.toString().padStart(2,"0")}`
+                if(p.data){
+                    const d = new Date(p.data)
+                    dataFormatada = d.toLocaleDateString("pt-BR")
                 }
 
                 html += `
                 <div style="margin-bottom:12px; font-size:14px; line-height:1.5;">
-                    
+
                     <div>📅 ${dataFormatada}</div>
 
-                    <div>⏱ <strong>TEMPO</strong> - ${tempo}</div>
+                    <div>
+                        ⏱ <strong>TEMPO TOTAL:</strong>
+                        ${formatarHoras(p.horas)}
+                    </div>
 
-                    <div>💰 <strong>VALOR EXTRA:</strong> 
-                        ${Number(e.valor).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}
+                    <div>
+                        ⏱ <strong>TEMPO EXTRA:</strong>
+                        ${formatarHoras(p.tempo_extra)}
                     </div>
 
                 </div>
                 `
             })
 
+        if (dados[mes].extras && dados[mes].extras.length){
+
+            dados[mes].extras.forEach(e => {
+
+                html += `
+                <div style="margin-left:20px;color:#16a34a">
+
+                    💰 <strong>VALOR EXTRA:</strong>
+                    ${Number(e.valor).toLocaleString(
+                        "pt-BR",
+                        {
+                            style:"currency",
+                            currency:"BRL"
+                        }
+                    )}
+
+                </div>
+                `
+            })
+        }
         } else {
 
             html += `
