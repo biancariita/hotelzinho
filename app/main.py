@@ -1184,24 +1184,45 @@ def gerar_pix_dados(
         .first()
 
     if not cobranca:
-        raise HTTPException(status_code=404, detail="Cobrança não encontrada")
+        raise HTTPException(
+            status_code=404,
+            detail="Cobrança não encontrada"
+        )
 
     empresa = db.query(models.Empresa)\
-        .filter(models.Empresa.id == usuario.empresa_id)\
+        .filter(
+            models.Empresa.id == usuario.empresa_id
+        )\
         .first()
+
+    # 🔥 soma os extras
+    extras = sum(
+        (i.valor or 0)
+        for i in cobranca.itens
+    )
+
+    # 🔥 valor final da cobrança
+    valor_total = (
+        (cobranca.valor or 0)
+        + extras
+    )
 
     payload_pix = gerar_payload_pix(
         empresa.pix_chave,
-        cobranca.valor,
+        valor_total,
         empresa.nome,
         "ITAU DE MINAS"
     )
 
     return {
         "pix": payload_pix,
-        "valor": cobranca.valor,
+        "valor": valor_total,
         "nome": cobranca.crianca.nome,
-        "telefone": cobranca.crianca.responsaveis[0].telefone if cobranca.crianca.responsaveis else ""
+        "telefone": (
+            cobranca.crianca.responsaveis[0].telefone
+            if cobranca.crianca.responsaveis
+            else ""
+        )
     }
 
 @app.get("/cobrancas/{cobranca_id}/pix")
@@ -1210,6 +1231,7 @@ def gerar_qrcode_pix(
     db: Session = Depends(get_db),
     usuario = Depends(get_usuario_atual)
 ):
+
     cobranca = db.query(models.Cobranca)\
         .filter(
             models.Cobranca.id == cobranca_id,
@@ -1218,27 +1240,52 @@ def gerar_qrcode_pix(
         .first()
 
     if not cobranca:
-        raise HTTPException(status_code=404, detail="Cobrança não encontrada")
+        raise HTTPException(
+            status_code=404,
+            detail="Cobrança não encontrada"
+        )
 
     empresa = db.query(models.Empresa)\
-        .filter(models.Empresa.id == usuario.empresa_id)\
+        .filter(
+            models.Empresa.id == usuario.empresa_id
+        )\
         .first()
+
+    # 🔥 soma extras
+    extras = sum(
+        (i.valor or 0)
+        for i in cobranca.itens
+    )
+
+    # 🔥 valor final
+    valor_total = (
+        (cobranca.valor or 0)
+        + extras
+    )
 
     payload_pix = gerar_payload_pix(
         empresa.pix_chave,
-        cobranca.valor,
+        valor_total,
         empresa.nome,
         "ITAU DE MINAS"
     )
 
-    # 🔥 GERA QR CODE
+    # 🔥 gera QR Code
     img = qrcode.make(payload_pix)
 
     buffer = BytesIO()
-    img.save(buffer, format="PNG")
+
+    img.save(
+        buffer,
+        format="PNG"
+    )
+
     buffer.seek(0)
 
-    return StreamingResponse(buffer, media_type="image/png")
+    return StreamingResponse(
+        buffer,
+        media_type="image/png"
+    )
 
 def verificar_permissao_financeiro(usuario):
     if usuario.role not in ["admin", "financeiro"]:

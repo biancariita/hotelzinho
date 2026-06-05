@@ -793,13 +793,6 @@ def calcular_valor_extra(
     checkout - checkin
     ).total_seconds() / 60
 
-    print(
-        "DEBUG EXTRA:",
-        "horas_contratadas=", horas_contratadas,
-        "tolerancia=", tolerancia_minutos,
-        "minutos_total=", minutos_total
-    )
-
     # 🔥 horas contratadas → minutos
     minutos_contratados = (
         horas_contratadas or 0
@@ -825,12 +818,6 @@ def calcular_valor_extra(
 
     valor_extra = (
         minutos_extra * valor_por_minuto
-    )
-
-    print(
-        "DEBUG RESULTADO:",
-        "minutos_extra=", minutos_extra,
-        "valor_extra=", valor_extra
     )
 
     return round(valor_extra, 2)

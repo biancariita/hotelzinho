@@ -342,10 +342,14 @@ async function pix(id){
 
     const data = await res.json()
 
+    console.log("PIX DATA:", data)
+
     const pix = data.pix
     const valor = data.valor
     const nome = data.nome
     const telefone = data.telefone
+
+    console.log("TELEFONE:", telefone)  
 
     // 🔥 MOSTRA NA TELA (isso que faltava)
     document.getElementById("pixCode").value = pix
@@ -368,7 +372,7 @@ async function pix(id){
         const url = window.URL.createObjectURL(blob)
         document.getElementById("qrCode").src = url
     })
-
+    
     // 🔥 salva pra WhatsApp
     window.telefonePix = telefone
     window.nomePix = nome
