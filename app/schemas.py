@@ -22,9 +22,6 @@ class ConfigEmpresa(BaseModel):
     banco_agencia: str | None = None
     banco_conta: str | None = None
     asaas_api_key: str | None = None
-
-    valor_sabado: float | None = None
-
     
 class EmpresaPerfil(BaseModel):
 
@@ -89,8 +86,6 @@ class CriancaCreate(BaseModel):
     primeira_mensalidade_paga: bool = False
     mes_pago: str | None = None
     tolerancia_minutos: int = 0
-
-    valor_sabado: float | None = None
 
 class CriancaResponse(BaseModel):
     id: int
@@ -222,7 +217,6 @@ class CobrancaResponse(BaseModel):
         from_attributes = True
 
 class ConfiguracaoFinanceira(BaseModel):
-    valor_sabado: float | None = None
     tipo_cobranca: str | None = None
 
 class FaturamentoCreate(BaseModel):

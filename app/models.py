@@ -32,8 +32,6 @@ class Empresa(Base):
     banco_agencia = Column(String, nullable=True)
     banco_conta = Column(String, nullable=True)
 
-    valor_sabado = Column(Float, nullable=True)
-
 class Crianca(Base):
     __tablename__ = "criancas"
 

@@ -902,8 +902,7 @@ def gerar_cobrancas_whatsapp(db: Session):
         PIX:
         http://localhost:8000/cobrancas/{m.id}/pix
 
-        Cartão:
-        http://localhost:8000/cobrancas/{m.id}/asaas
+        
         """
 
         resultado.append({

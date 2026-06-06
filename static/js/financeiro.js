@@ -574,35 +574,44 @@ function salvarFinanceiro(){
         },
         body:JSON.stringify({
 
-            valor_hora: parseFloat(document.getElementById("valor_hora").value) || null,
-            valor_diaria: parseFloat(document.getElementById("valor_diaria").value) || null,
+            pix_chave:
+                document.getElementById("pix_chave").value,
 
-            valor_semanal_integral: parseFloat(document.getElementById("valor_semanal_integral").value) || null,
-            valor_semanal_meio: parseFloat(document.getElementById("valor_semanal_meio").value) || null,
+            banco_nome:
+                document.getElementById("banco_nome").value,
 
-            valor_mensal_integral: parseFloat(document.getElementById("valor_mensal_integral").value) || null,
-            valor_mensal_meio: parseFloat(document.getElementById("valor_mensal_meio").value) || null,
+            banco_agencia:
+                document.getElementById("banco_agencia").value,
 
-            valor_sabado: parseFloat(document.getElementById("valor_sabado").value) || null,
-
-            pix_chave: document.getElementById("pix_chave").value,
-            banco_nome: document.getElementById("banco_nome").value,
-            banco_agencia: document.getElementById("banco_agencia").value,
-            banco_conta: document.getElementById("banco_conta").value
+            banco_conta:
+                document.getElementById("banco_conta").value
 
         })
     })
     .then(res=>{
+
         if(!res.ok){
-            throw new Error("Erro ao salvar financeiro")
+            throw new Error(
+                "Erro ao salvar financeiro"
+            )
         }
+
         return res.json()
+
     })
     .then(()=>{
-        alert("Configuração financeira salva")
+
+        alert(
+            "Configuração financeira salva"
+        )
+
     })
     .catch(err=>{
+
+        console.error(err)
+
         alert(err.message)
+
     })
 }
 
@@ -616,52 +625,39 @@ function carregarFinanceiro(){
         }
     })
     .then(res=>{
-    if(!res.ok){
-        throw new Error("Erro ao carregar dados")
-    }
-    return res.json()
-})
+
+        if(!res.ok){
+            throw new Error("Erro ao carregar dados")
+        }
+
+        return res.json()
+
+    })
     .then(dados=>{
-        
 
-    const el = document.getElementById("valor_hora")
-    if (el) el.value = dados.valor_hora || ""
-    if (document.getElementById("valor_diaria"))
-        document.getElementById("valor_diaria").value = dados.valor_diaria || ""
+        if (document.getElementById("pix_chave"))
+            document.getElementById("pix_chave").value =
+                dados.pix_chave || ""
 
-    if (document.getElementById("valor_semanal_integral"))
-        document.getElementById("valor_semanal_integral").value = dados.valor_semanal_integral || ""
+        if (document.getElementById("banco_nome"))
+            document.getElementById("banco_nome").value =
+                dados.banco_nome || ""
 
-    if (document.getElementById("valor_semanal_meio"))
-        document.getElementById("valor_semanal_meio").value = dados.valor_semanal_meio || ""
+        if (document.getElementById("banco_agencia"))
+            document.getElementById("banco_agencia").value =
+                dados.banco_agencia || ""
 
-    if (document.getElementById("valor_mensal_integral"))
-        document.getElementById("valor_mensal_integral").value = dados.valor_mensal_integral || ""
+        if (document.getElementById("banco_conta"))
+            document.getElementById("banco_conta").value =
+                dados.banco_conta || ""
 
-    if (document.getElementById("valor_mensal_meio"))
-        document.getElementById("valor_mensal_meio").value = dados.valor_mensal_meio || ""
+    })
+    .catch(err=>{
 
-    if (document.getElementById("valor_sabado"))
-        document.getElementById("valor_sabado").value = dados.valor_sabado || ""
-
-    if (document.getElementById("tipo_cobranca"))
-        document.getElementById("tipo_cobranca").value = dados.tipo_cobranca || "hora"
-
-    if (document.getElementById("pix_chave"))
-        document.getElementById("pix_chave").value = dados.pix_chave || ""
-
-    if (document.getElementById("banco_nome"))
-        document.getElementById("banco_nome").value = dados.banco_nome || ""
-
-    if (document.getElementById("banco_agencia"))
-        document.getElementById("banco_agencia").value = dados.banco_agencia || ""
-
-    if (document.getElementById("banco_conta"))
-    document.getElementById("banco_conta").value = dados.banco_conta || ""
+        console.error(err)
 
     })
 }
-
 
 // carregar automático
 document.addEventListener("DOMContentLoaded", carregarFinanceiro)

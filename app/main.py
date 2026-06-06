@@ -1400,9 +1400,6 @@ def atualizar_configuracoes(
 
     # FINANCEIRO (só atualiza se vier)
 
-    if dados.valor_sabado is not None:
-        empresa.valor_sabado = dados.valor_sabado
-
     if dados.pix_chave is not None :
         empresa.pix_chave = dados.pix_chave
 
@@ -1439,10 +1436,7 @@ def obter_configuracoes(
         "telefone": empresa.telefone,
         "email": empresa.email,
         "endereco": empresa.endereco,
-
         
-        "valor_sabado": empresa.valor_sabado,
-
         "pix_chave": empresa.pix_chave,
         "banco_nome": empresa.banco_nome,
         "banco_agencia": empresa.banco_agencia,
@@ -1881,10 +1875,6 @@ def calcular_valor(c, empresa, checkin, checkout):
     tempo = checkout - checkin
     horas = tempo.total_seconds() / 3600
     dia_semana = checkin.weekday()
-
-    # 🟥 SÁBADO
-    if dia_semana == 5:
-        return empresa.valor_sabado or 0
 
 @app.put("/presencas/{presenca_id}")
 def editar_presenca(

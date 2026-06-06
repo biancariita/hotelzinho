@@ -27,18 +27,7 @@ body: JSON.stringify({
     telefone: valor("telefone"),
     email: valor("email_empresa"),
     endereco: valor("endereco"),
-
-    valor_hora: numero("valor_hora"),
-    valor_diaria: numero("valor_diaria"),
-
-    valor_semanal_integral: numero("valor_semanal_integral"),
-    valor_semanal_meio: numero("valor_semanal_meio"),
-
-    valor_mensal_integral: numero("valor_mensal_integral"),
-    valor_mensal_meio: numero("valor_mensal_meio"),
-
-    valor_sabado: numero("valor_sabado")
-})
+    })
 
 })
 
@@ -165,26 +154,6 @@ function carregarConfiguracoes(){
         document.getElementById("email_empresa").value = dados.email || ""
         document.getElementById("endereco").value = dados.endereco || ""
 
-        if(document.getElementById("valor_hora"))
-            document.getElementById("valor_hora").value = dados.valor_hora || ""
-
-        if(document.getElementById("valor_diaria"))
-            document.getElementById("valor_diaria").value = dados.valor_diaria || ""
-
-        if(document.getElementById("valor_semanal_integral"))
-            document.getElementById("valor_semanal_integral").value = dados.valor_semanal_integral || ""
-
-        if(document.getElementById("valor_semanal_meio"))
-            document.getElementById("valor_semanal_meio").value = dados.valor_semanal_meio || ""
-
-        if(document.getElementById("valor_mensal_integral"))
-            document.getElementById("valor_mensal_integral").value = dados.valor_mensal_integral || ""
-
-        if(document.getElementById("valor_mensal_meio"))
-            document.getElementById("valor_mensal_meio").value = dados.valor_mensal_meio || ""
-
-        if(document.getElementById("valor_sabado"))
-            document.getElementById("valor_sabado").value = dados.valor_sabado || ""
     })
     .catch(err=>{
         console.error(err)
