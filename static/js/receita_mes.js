@@ -22,23 +22,20 @@ async function carregarResumo(){
 
     const d = await res.json()
 
-    const faturamento = d.total_recebido || 0
+    const faturamento = d.faturamento || 0
 
-    document.getElementById("faturamento").innerText = formatarMoeda(faturamento)
+    document.getElementById("faturamento").innerText =
+        formatarMoeda(faturamento)
 
-    const resG = await fetch(`/gastos?mes=${mes}`,{
-        headers:{ Authorization:"Bearer "+token }
-    })
+    const gastos = d.gastos || 0
 
-    const g = await resG.json()
+    document.getElementById("gastos").innerText =
+        formatarMoeda(gastos)
 
-    const totalGastos = g.total || 0
+    const lucro = d.lucro || 0
 
-    document.getElementById("gastos").innerText = formatarMoeda(totalGastos)
-
-    const lucro = faturamento - totalGastos
-
-    document.getElementById("lucro").innerText = formatarMoeda(lucro)
+    document.getElementById("lucro").innerText =
+        formatarMoeda(lucro)
 }
 
 function fecharFinanceiro(){

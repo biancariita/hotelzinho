@@ -974,8 +974,13 @@ def listar_inadimplentes(db: Session, empresa_id: int, mes: str):
 
     return resultado
 
-def dashboard_financeiro(db: Session, empresa_id: int, mes: str):
+def dashboard_financeiro(
+    db: Session,
+    empresa_id: int,
+    mes: str
+):
 
+    # cobranças pagas
     cobrancas = db.query(models.Cobranca)\
         .filter(
             models.Cobranca.empresa_id == empresa_id,
@@ -983,15 +988,50 @@ def dashboard_financeiro(db: Session, empresa_id: int, mes: str):
         )\
         .all()
 
-    total_recebido = 0.0
+    total_recebido = sum(
+        c.valor or 0
+        for c in cobrancas
+        if c.pago
+    )
 
-    for c in cobrancas:
-        if c.pago:
-            total_recebido += c.valor
+    # faturamentos manuais
+    faturamentos = db.query(models.Faturamento)\
+        .filter(
+            models.Faturamento.empresa_id == empresa_id,
+            models.Faturamento.mes == mes
+        )\
+        .all()
+
+    total_faturamento = sum(
+        f.valor or 0
+        for f in faturamentos
+    )
+
+    # gastos
+    gastos = db.query(models.Gasto)\
+        .filter(
+            models.Gasto.empresa_id == empresa_id,
+            models.Gasto.mes == mes
+        )\
+        .all()
+
+    total_gastos = sum(
+        g.valor or 0
+        for g in gastos
+    )
 
     return {
         "mes": mes,
-        "total_recebido": total_recebido
+        "faturamento": round(total_faturamento, 2),
+        "gastos": round(total_gastos, 2),
+        "lucro": round(
+            total_faturamento - total_gastos,
+            2
+        ),
+        "total_recebido": round(
+            total_recebido,
+            2
+        )
     }
 
 def listar_cobrancas(db: Session, empresa_id: int):
